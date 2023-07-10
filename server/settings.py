@@ -25,9 +25,9 @@ class CustomFFmpegArgumentsModel(BaseSettingsModel):
 
 
 class FFmpegSettings(BaseSettingsModel):
-    allow_download: bool = Field(
+    use_downloaded: bool = Field(
         default=True,
-        title="Allow to download ffmpeg from server",
+        title="Download ffmpeg from server",
         description="If disabled, one of custom options must be used",
     )
     custom_roots: MultiplatformPathListModel = Field(
@@ -74,9 +74,9 @@ class CustomOIIOArgumentsModel(BaseSettingsModel):
 
 
 class OIIOSettings(BaseSettingsModel):
-    allow_download: bool = Field(
+    use_downloaded: bool = Field(
         default=True,
-        title="Allow to download OpenImageIO from server",
+        title="Download OpenImageIO from server",
         description="If disabled, one of custom options must be used",
     )
     custom_roots: MultiplatformPathListModel = Field(
