@@ -182,7 +182,7 @@ def get_server_files_info():
         list[dict[str, str]]: Information about files on server.
     """
 
-    response = ayon_api.get("{}/ocio_zip_info".format(
+    response = ayon_api.get("{}/files_info".format(
         _get_addon_endpoint()
     ))
     response.raise_for_status()
