@@ -84,7 +84,7 @@ class OIIOSettings(BaseSettingsModel):
         title="Custom root",
         description="Root to directory where OpenImageIO binaries can be found",
     )
-    custom_sources: CustomOIIOArgumentsModel = Field(
+    custom_args: CustomOIIOArgumentsModel = Field(
         default_factory=CustomOIIOArgumentsModel,
         title="Custom arguments",
         description="Custom arguments that will be used to launch ffmpeg tools",
