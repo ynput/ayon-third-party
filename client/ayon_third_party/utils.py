@@ -237,7 +237,7 @@ def get_downloaded_oiio_root():
 
     server_oiio_info = _find_file_info("oiio", get_server_files_info())
     root = None
-    for existing_info in get_downloaded_oiio_root():
+    for existing_info in get_downloaded_oiio_info():
         if existing_info["checksum"] != server_oiio_info["checksum"]:
             continue
         found_root = existing_info["root"]
@@ -464,7 +464,7 @@ def download_ffmpeg(progress=None):
     file_info = _find_file_info("ffmpeg", files_info)
     if file_info is None:
         raise ValueError((
-            "Couldn't find ffmpeg source file for platoform '{}'"
+            "Couldn't find ffmpeg source file for platform '{}'"
         ).format(platform.system()))
 
     _download_file(file_info, dirpath, progress=progress)
@@ -500,7 +500,7 @@ def download_oiio(progress=None):
     file_info = _find_file_info("oiio", files_info)
     if file_info is None:
         raise ValueError((
-            "Couldn't find ffmpeg source file for platoform '{}'"
+            "Couldn't find OpenImageIO source file for platform '{}'"
         ).format(platform.system()))
 
     _download_file(file_info, dirpath, progress=progress)
