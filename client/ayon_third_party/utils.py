@@ -144,7 +144,7 @@ def filter_file_info(name):
         print("Failed to load {} info from {}".format(
             name, filepath
         ))
-    return {}
+    return []
 
 
 def store_file_info(name, info):
@@ -234,12 +234,12 @@ def get_downloaded_oiio_root():
     if _OIIOArgs.downloaded_root is not NOT_SET:
         return _OIIOArgs.downloaded_root
 
-    server_ffmpeg_info = _find_file_info("oiio", get_server_files_info())
+    server_oiio_info = _find_file_info("oiio", get_server_files_info())
     _OIIOArgs.downloaded_root = next(
         (
             existing_info["root"]
-            for existing_info in get_downloaded_ffmpeg_info()
-            if existing_info["checksum"] == server_ffmpeg_info["checksum"]
+            for existing_info in get_oiio_arguments()
+            if existing_info["checksum"] == server_oiio_info["checksum"]
         ),
         None
     )
@@ -255,13 +255,20 @@ def _fill_ffmpeg_tool_args(tool_name, addon_settings=None):
 
     if addon_settings is None:
         addon_settings = get_addon_settings()
+    platform_name = platform.system().lower()
     ffmpeg_settings = addon_settings["ffmpeg"]
     if ffmpeg_settings["use_downloaded"]:
         if is_ffmpeg_download_needed(addon_settings):
             download_ffmpeg()
+
+        path_parts = [get_downloaded_ffmpeg_root()]
+        if platform_name == "windows":
+            path_parts.append("bin")
+            tool_name = "{}.exe".format(tool_name)
+        path_parts.append(tool_name)
+
         args = [
-            get_downloaded_oiio_root(),
-            tool_name
+            os.path.sep.join(path_parts)
         ]
         if not validate_ffmpeg_args(args):
             args = None
@@ -276,7 +283,7 @@ def _fill_ffmpeg_tool_args(tool_name, addon_settings=None):
     custom_roots = list(
         ffmpeg_settings
         ["custom_roots"]
-        [platform.system().lower()]
+        [platform_name]
     )
     filtered_roots = [
         root
@@ -304,13 +311,21 @@ def _fill_oiio_tool_args(tool_name, addon_settings=None):
     if addon_settings is None:
         addon_settings = get_addon_settings()
 
+    platform_name = platform.system().lower()
     oiio_settings = addon_settings["oiio"]
     if oiio_settings["use_downloaded"]:
         if is_oiio_download_needed(addon_settings):
             download_oiio()
+
+        path_parts = [get_downloaded_oiio_root()]
+        if platform_name == "linux":
+            path_parts.append("bin")
+        elif platform_name == "windows":
+            tool_name = "{}.exe".format(tool_name)
+        path_parts.append(tool_name)
+
         args = [
-            get_downloaded_oiio_root(),
-            tool_name
+            os.path.sep.join(path_parts)
         ]
         if not validate_oiio_args(args):
             args = None
@@ -325,7 +340,7 @@ def _fill_oiio_tool_args(tool_name, addon_settings=None):
     custom_roots = list(
         oiio_settings
         ["custom_roots"]
-        [platform.system().lower()]
+        [platform_name]
     )
     filtered_roots = [
         root
@@ -393,11 +408,13 @@ def _download_file(file_info, dirpath, progress=None):
     checksum = file_info["checksum"]
     checksum_algorithm = file_info["checksum_algorithm"]
 
-    zip_filepath = os.path.join(dirpath, filename)
-    endpoint = "{}/private/{}".format(
-        _get_addon_endpoint(), filename
+    zip_filepath = ayon_api.download_addon_private_file(
+        ADDON_NAME,
+        __version__,
+        filename,
+        dirpath,
+        progress=progress
     )
-    ayon_api.download_file(endpoint, zip_filepath, progress=progress)
 
     try:
         if not validate_file_checksum(
