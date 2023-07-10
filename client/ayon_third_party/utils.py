@@ -4,7 +4,6 @@ import platform
 import datetime
 import subprocess
 import copy
-import uuid
 
 import ayon_api
 
@@ -456,9 +455,7 @@ def download_ffmpeg(progress=None):
         progress (ayon_api.TransferProgress): Keep track about download.
     """
 
-    dirpath = os.path.join(
-        get_download_dir(), "ffmpeg", uuid.uuid4().hex
-    )
+    dirpath = os.path.join(get_download_dir(), "ffmpeg")
 
     files_info = get_server_files_info()
     file_info = _find_file_info("ffmpeg", files_info)
@@ -493,9 +490,7 @@ def download_ffmpeg(progress=None):
 
 
 def download_oiio(progress=None):
-    dirpath = os.path.join(
-        get_download_dir(), "oiio", uuid.uuid4().hex
-    )
+    dirpath = os.path.join(get_download_dir(), "oiio")
 
     files_info = get_server_files_info()
     file_info = _find_file_info("oiio", files_info)
