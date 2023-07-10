@@ -107,13 +107,14 @@ class DownloadItemWidget(QtWidgets.QWidget):
     def __init__(self, download_item, parent):
         super(DownloadItemWidget, self).__init__(parent)
 
-        label = QtWidgets.QLabel(download_item.title, self)
+        title_label = QtWidgets.QLabel(download_item.title, self)
         progress_label = QtWidgets.QLabel("0%", self)
 
         content_layout = QtWidgets.QHBoxLayout(self)
-        content_layout.addWidget(label, 1)
+        content_layout.addWidget(title_label, 1)
         content_layout.addWidget(progress_label, 0)
 
+        self._title_label = title_label
         self._progress_label = progress_label
         self._download_item = download_item
 
@@ -127,7 +128,7 @@ class DownloadItemWidget(QtWidgets.QWidget):
             return
 
         # TODO replace with 'progress.is_running' once is fixed
-        progress_is_running = (
+        progress_is_running = not (
             not progress.started
             or progress.transfer_done
             or progress.failed
@@ -163,8 +164,8 @@ class DownloadWindow(QtWidgets.QWidget):
             content_layout.addWidget(item_widget, 0)
         content_layout.addStretch(1)
 
-        main_layout = QtWidgets.QVBoxLayout(content_widget)
-        main_layout.addWidget(content_widget)
+        main_layout = QtWidgets.QVBoxLayout(self)
+        main_layout.addWidget(content_widget, 1)
 
         timer = QtCore.QTimer()
         timer.setInterval(10)
@@ -182,7 +183,7 @@ class DownloadWindow(QtWidgets.QWidget):
             self._first_show = False
             # Set stylesheet and resize
             self.setStyleSheet(style.load_stylesheet())
-            self.resize(600, 700)
+            self.resize(360, 200)
 
         if self._start_on_show:
             self.start()
