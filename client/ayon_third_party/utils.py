@@ -506,7 +506,7 @@ def download_oiio(progress=None):
     _download_file(file_info, dirpath, progress=progress)
 
     oiio_info = get_downloaded_oiio_info()
-    existing_item = (
+    existing_item = next(
         (
             item
             for item in oiio_info
