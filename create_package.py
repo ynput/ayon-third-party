@@ -258,7 +258,7 @@ def download_oiio_zip(private_dir, log):
             filehash = hashlib.sha256(stream.read()).hexdigest()
 
         zip_files_info.append({
-            "name": "oiio_tools",
+            "name": "oiio",
             "filename": filename,
             "checksum": filehash,
             "checksum_algorithm": "sha256",
