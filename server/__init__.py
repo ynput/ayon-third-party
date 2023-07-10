@@ -22,17 +22,19 @@ class ThirdPartyDistAddon(BaseServerAddon):
     def initialize(self):
         self.add_endpoint(
             "files_info",
-            self.get_files_info,
+            self._get_files_info,
             method="GET",
+            name="files_info",
+            description="Get information about binary files on server.",
         )
 
-    async def get_files_info(
+    async def _get_files_info(
         self,
         user: UserEntity = Depends(dep_current_user)
-    ) -> dict[str, str]:
+    ) -> list[dict[str, str]]:
         info_filepath = os.path.join(
             CURRENT_DIR, "private", "files_info.json"
         )
         with open(info_filepath, "r") as stream:
-            data = json.load(info_filepath)
+            data = json.load(stream)
         return data
