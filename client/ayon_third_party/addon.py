@@ -2,6 +2,10 @@ from openpype.modules import OpenPypeModule, ITrayModule
 
 from .constants import ADDON_NAME
 from .version import __version__
+from .utils import (
+    is_ffmpeg_download_needed,
+    is_oiio_download_needed,
+)
 
 
 class ThirdPartyDistAddon(OpenPypeModule, ITrayModule):
@@ -15,10 +19,10 @@ class ThirdPartyDistAddon(OpenPypeModule, ITrayModule):
 
     name = ADDON_NAME
     version = __version__
-    # Class cache if download is needed
 
     def initialize(self, module_settings):
         self.enabled = True
+        self._download_window = None
 
     def tray_exit(self):
         pass
@@ -30,4 +34,20 @@ class ThirdPartyDistAddon(OpenPypeModule, ITrayModule):
         pass
 
     def tray_start(self):
-        pass
+        download_ffmpeg = is_ffmpeg_download_needed()
+        download_oiio = is_oiio_download_needed()
+        if not download_oiio and not download_ffmpeg:
+            return
+
+        from .download_ui import show_download_window
+
+        download_window = show_download_window(
+            download_ffmpeg, download_oiio
+        )
+        download_window.finished.connect(self._on_download_finish)
+        download_window.start()
+        self._download_window = download_window
+
+    def _on_download_finish(self):
+        self._download_window.close()
+        self._download_window = None
