@@ -218,14 +218,16 @@ def get_downloaded_ffmpeg_root():
         return _FFmpegArgs.downloaded_root
 
     server_ffmpeg_info = _find_file_info("ffmpeg", get_server_files_info())
-    _FFmpegArgs.downloaded_root = next(
-        (
-            existing_info["root"]
-            for existing_info in get_downloaded_ffmpeg_info()
-            if existing_info["checksum"] == server_ffmpeg_info["checksum"]
-        ),
-        None
-    )
+    root = None
+    for existing_info in get_downloaded_ffmpeg_info():
+        if existing_info["checksum"] != server_ffmpeg_info["checksum"]:
+            continue
+        found_root = existing_info["root"]
+        if os.path.exists(found_root):
+            root = found_root
+            break
+
+    _FFmpegArgs.downloaded_root = root
     return _FFmpegArgs.downloaded_root
 
 
@@ -234,14 +236,15 @@ def get_downloaded_oiio_root():
         return _OIIOArgs.downloaded_root
 
     server_oiio_info = _find_file_info("oiio", get_server_files_info())
-    _OIIOArgs.downloaded_root = next(
-        (
-            existing_info["root"]
-            for existing_info in get_oiio_arguments()
-            if existing_info["checksum"] == server_oiio_info["checksum"]
-        ),
-        None
-    )
+    root = None
+    for existing_info in get_downloaded_oiio_root():
+        if existing_info["checksum"] != server_oiio_info["checksum"]:
+            continue
+        found_root = existing_info["root"]
+        if os.path.exists(found_root):
+            root = found_root
+            break
+    _OIIOArgs.downloaded_root = root
     return _OIIOArgs.downloaded_root
 
 
@@ -487,6 +490,7 @@ def download_ffmpeg(progress=None):
     store_downloaded_ffmpeg_info(ffmpeg_info)
 
     _FFmpegArgs.download_needed = False
+    _FFmpegArgs.downloaded_root = NOT_SET
 
 
 def download_oiio(progress=None):
@@ -523,6 +527,7 @@ def download_oiio(progress=None):
     store_downloaded_oiio_info(oiio_info)
 
     _OIIOArgs.download_needed = False
+    _OIIOArgs.downloaded_root = NOT_SET
 
 
 def get_ffmpeg_arguments(tool_name="ffmpeg"):
