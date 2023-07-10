@@ -3,6 +3,8 @@ import json
 import platform
 import datetime
 import subprocess
+import copy
+import uuid
 
 import ayon_api
 
@@ -20,15 +22,39 @@ DOWNLOAD_DIR = os.path.join(CURRENT_DIR, "downloads")
 NOT_SET = type("NOT_SET", (), {"__bool__": lambda: False})()
 
 
+class _OIIOArgs:
+    download_needed = None
+    downloaded_root = NOT_SET
+    tools = {
+        "oiiotool": NOT_SET,
+        "maketx": NOT_SET,
+        "iv": NOT_SET,
+        "iinfo": NOT_SET,
+        "igrep": NOT_SET,
+        "idiff": NOT_SET,
+        "iconvert": NOT_SET,
+    }
+
+
+class _FFmpegArgs:
+    download_needed = None
+    downloaded_root = NOT_SET
+    tools = {
+        "ffmpeg": NOT_SET,
+        "ffprobe": NOT_SET,
+    }
+
+
 class _ThirdPartyCache:
-    ffmpeg_download_needed = None
-    oiio_download_needed = None
+    addon_settings = NOT_SET
 
-    downloaded_ffmpeg_root = NOT_SET
-    downloaded_oiio_root = NOT_SET
 
-    ffmpeg_arguments = NOT_SET
-    oiio_arguments = NOT_SET
+def get_addon_settings():
+    if _ThirdPartyCache.addon_settings is NOT_SET:
+        _ThirdPartyCache.addon_settings = ayon_api.get_addon_settings(
+            ADDON_NAME, __version__
+        )
+    return copy.deepcopy(_ThirdPartyCache.addon_settings)
 
 
 def get_download_dir(create_if_missing=True):
@@ -37,7 +63,6 @@ def get_download_dir(create_if_missing=True):
     if create_if_missing and not os.path.exists(DOWNLOAD_DIR):
         os.makedirs(DOWNLOAD_DIR)
     return DOWNLOAD_DIR
-
 
 
 def _check_args_returncode(args):
@@ -74,7 +99,7 @@ def validate_ffmpeg_args(args):
     """Validate ffmpeg arguments.
 
     Args:
-        args (str): ffmpeg arguments.
+        args (list[str]): ffmpeg arguments.
 
     Returns:
         bool: True if arguments are valid.
@@ -82,7 +107,6 @@ def validate_ffmpeg_args(args):
 
     if not args:
         return False
-
     return _check_args_returncode(args + ["-version"])
 
 
@@ -90,7 +114,7 @@ def validate_oiio_args(args):
     """Validate oiio arguments.
 
     Args:
-        args (str): oiio arguments.
+        args (list[str]): oiio arguments.
 
     Returns:
         bool: True if arguments are valid.
@@ -115,7 +139,7 @@ def filter_file_info(name):
     try:
         if os.path.exists(filepath):
             with open(filepath, "r") as stream:
-                return json.loads(stream)
+                return json.load(stream)
     except Exception:
         print("Failed to load {} info from {}".format(
             name, filepath
@@ -177,77 +201,191 @@ def _find_file_info(name, files_info):
     """
 
     platform_name = platform.system().lower()
-    for file_info in files_info:
-        if (
-            file_info["name"] == name
-            and file_info["platform"] == platform_name
-        ):
-            return file_info
-    return None
+    return next(
+        (
+            file_info
+            for file_info in files_info
+            if (
+                file_info["name"] == name
+                and file_info["platform"] == platform_name
+            )
+        ),
+        None
+    )
 
 
 def get_downloaded_ffmpeg_root():
-    if _ThirdPartyCache.downloaded_ffmpeg_root is not NOT_SET:
-        return _ThirdPartyCache.downloaded_ffmpeg_root
+    if _FFmpegArgs.downloaded_root is not NOT_SET:
+        return _FFmpegArgs.downloaded_root
 
     server_ffmpeg_info = _find_file_info("ffmpeg", get_server_files_info())
-    for existing_info in get_downloaded_ffmpeg_info():
-        if existing_info["checksum"] == server_ffmpeg_info["checksum"]:
-            _ThirdPartyCache.downloaded_ffmpeg_root = existing_info["root"]
-            return existing_info["root"]
-
-    _ThirdPartyCache.downloaded_ffmpeg_root = None
-    return None
+    _FFmpegArgs.downloaded_root = next(
+        (
+            existing_info["root"]
+            for existing_info in get_downloaded_ffmpeg_info()
+            if existing_info["checksum"] == server_ffmpeg_info["checksum"]
+        ),
+        None
+    )
+    return _FFmpegArgs.downloaded_root
 
 
 def get_downloaded_oiio_root():
-    if _ThirdPartyCache.downloaded_oiio_root is not NOT_SET:
-        return _ThirdPartyCache.downloaded_oiio_root
+    if _OIIOArgs.downloaded_root is not NOT_SET:
+        return _OIIOArgs.downloaded_root
 
     server_ffmpeg_info = _find_file_info("oiio", get_server_files_info())
-    for existing_info in get_downloaded_ffmpeg_info():
-        if existing_info["checksum"] == server_ffmpeg_info["checksum"]:
-            _ThirdPartyCache.downloaded_oiio_root = existing_info["root"]
-            return existing_info["root"]
+    _OIIOArgs.downloaded_root = next(
+        (
+            existing_info["root"]
+            for existing_info in get_downloaded_ffmpeg_info()
+            if existing_info["checksum"] == server_ffmpeg_info["checksum"]
+        ),
+        None
+    )
+    return _OIIOArgs.downloaded_root
 
-    _ThirdPartyCache.downloaded_oiio_root = None
-    return None
+
+def _fill_ffmpeg_tool_args(tool_name, addon_settings=None):
+    if tool_name not in _FFmpegArgs.tools:
+        raise ValueError("Invalid tool name '{}'. Expected {}".format(
+            tool_name,
+            ", ".join(["'{}'".format(t) for t in _FFmpegArgs.tools])
+        ))
+
+    if addon_settings is None:
+        addon_settings = get_addon_settings()
+    ffmpeg_settings = addon_settings["ffmpeg"]
+    if ffmpeg_settings["use_downloaded"]:
+        if is_ffmpeg_download_needed(addon_settings):
+            download_ffmpeg()
+        args = [
+            get_downloaded_oiio_root(),
+            tool_name
+        ]
+        if not validate_ffmpeg_args(args):
+            args = None
+        _FFmpegArgs.tools[tool_name] = args
+        return args
+
+    for custom_args in ffmpeg_settings["custom_args"][tool_name]:
+        if custom_args and validate_ffmpeg_args(custom_args):
+            _FFmpegArgs.tools[tool_name] = custom_args
+            return custom_args
+
+    custom_roots = list(
+        ffmpeg_settings
+        ["custom_roots"]
+        [platform.system().lower()]
+    )
+    filtered_roots = [
+        root
+        for root in custom_roots
+        if root and os.path.exists(root)
+    ]
+    final_args = None
+    for root in filtered_roots:
+        tool_path = os.path.join(root, tool_name)
+        args = [tool_path]
+        if validate_ffmpeg_args(args):
+            final_args = args
+            break
+    _FFmpegArgs.tools[tool_name] = final_args
+    return final_args
 
 
-def is_ffmpeg_download_needed():
+def _fill_oiio_tool_args(tool_name, addon_settings=None):
+    if tool_name not in _OIIOArgs.tools:
+        raise ValueError("Invalid tool name '{}'. Expected {}".format(
+            tool_name,
+            ", ".join(["'{}'".format(t) for t in _OIIOArgs.tools])
+        ))
+
+    if addon_settings is None:
+        addon_settings = get_addon_settings()
+
+    oiio_settings = addon_settings["oiio"]
+    if oiio_settings["use_downloaded"]:
+        if is_oiio_download_needed(addon_settings):
+            download_oiio()
+        args = [
+            get_downloaded_oiio_root(),
+            tool_name
+        ]
+        if not validate_oiio_args(args):
+            args = None
+        _OIIOArgs.tools[tool_name] = args
+        return args
+
+    for custom_args in oiio_settings["custom_args"][tool_name]:
+        if custom_args and validate_oiio_args(custom_args):
+            _OIIOArgs.tools[tool_name] = custom_args
+            return custom_args
+
+    custom_roots = list(
+        oiio_settings
+        ["custom_roots"]
+        [platform.system().lower()]
+    )
+    filtered_roots = [
+        root
+        for root in custom_roots
+        if os.path.exists(root)
+    ]
+    final_args = None
+    for root in filtered_roots:
+        tool_path = os.path.join(root, tool_name)
+        args = [tool_path]
+        if validate_oiio_args(args):
+            final_args = args
+            break
+    _OIIOArgs.tools[tool_name] = final_args
+    return final_args
+
+
+def is_ffmpeg_download_needed(addon_settings=None):
     """Check if is download needed.
 
     Returns:
         bool: Should be config downloaded.
     """
 
-    if _ThirdPartyCache.ffmpeg_download_needed is not None:
-        return _ThirdPartyCache.ffmpeg_download_needed
+    if _FFmpegArgs.download_needed is not None:
+        return _FFmpegArgs.download_needed
 
-    # TODO load settings for custom ffmpeg arguments
+    if addon_settings is None:
+        addon_settings = get_addon_settings()
+    ffmpeg_settings = addon_settings["ffmpeg"]
+    download_needed = False
+    if ffmpeg_settings["use_downloaded"]:
+        # Check what is required by server
+        ffmpeg_root = get_downloaded_ffmpeg_root()
+        download_needed = not bool(ffmpeg_root)
 
-    # Check what is required by server
-    ffmpeg_root = get_downloaded_ffmpeg_root()
-    _ThirdPartyCache.ffmpeg_download_needed = not bool(ffmpeg_root)
-    return _ThirdPartyCache.ffmpeg_download_needed
+    _FFmpegArgs.download_needed = download_needed
+    return _FFmpegArgs.download_needed
 
 
-def is_oiio_download_needed():
+def is_oiio_download_needed(addon_settings=None):
     """Check if is download needed.
 
     Returns:
         bool: Should be config downloaded.
     """
 
-    if _ThirdPartyCache.oiio_download_needed is not None:
-        return _ThirdPartyCache.oiio_download_needed
+    if _OIIOArgs.download_needed is not None:
+        return _OIIOArgs.download_needed
 
-    # TODO load settings for custom ffmpeg arguments
+    if addon_settings is None:
+        addon_settings = get_addon_settings()
+    oiio_settings = addon_settings["oiio"]
 
-    # Check what is required by server
-    oiio_root = get_downloaded_oiio_root()
-    _ThirdPartyCache.oiio_download_needed = not bool(oiio_root)
-    return _ThirdPartyCache.oiio_download_needed
+    download_needed = False
+    if oiio_settings["use_downloaded"]:
+        oiio_root = get_downloaded_oiio_root()
+        download_needed = not bool(oiio_root)
+    _OIIOArgs.download_needed = download_needed
+    return _OIIOArgs.download_needed
 
 
 def _download_file(file_info, dirpath, progress=None):
@@ -263,7 +401,7 @@ def _download_file(file_info, dirpath, progress=None):
 
     try:
         if not validate_file_checksum(
-                zip_filepath, checksum, checksum_algorithm
+            zip_filepath, checksum, checksum_algorithm
         ):
             raise ValueError(
                 "Downloaded file hash does not match expected hash"
@@ -285,7 +423,9 @@ def download_ffmpeg(progress=None):
         progress (ayon_api.TransferProgress): Keep track about download.
     """
 
-    dirpath = os.path.join(get_download_dir(), "ffmpeg")
+    dirpath = os.path.join(
+        get_download_dir(), "ffmpeg", uuid.uuid4().hex
+    )
 
     files_info = get_server_files_info()
     file_info = _find_file_info("ffmpeg", files_info)
@@ -297,12 +437,14 @@ def download_ffmpeg(progress=None):
     _download_file(file_info, dirpath, progress=progress)
 
     ffmpeg_info = get_downloaded_ffmpeg_info()
-    existing_item = None
-    for item in ffmpeg_info:
-        if item["root"] == dirpath:
-            existing_item = item
-            break
-
+    existing_item = next(
+        (
+            item
+            for item in ffmpeg_info
+            if item["root"] == dirpath
+        ),
+        None
+    )
     if existing_item is None:
         existing_item = {}
         ffmpeg_info.append(existing_item)
@@ -314,11 +456,13 @@ def download_ffmpeg(progress=None):
     })
     store_downloaded_ffmpeg_info(ffmpeg_info)
 
-    _ThirdPartyCache.ffmpeg_download_needed = False
+    _FFmpegArgs.download_needed = False
 
 
 def download_oiio(progress=None):
-    dirpath = os.path.join(get_download_dir(), "oiio")
+    dirpath = os.path.join(
+        get_download_dir(), "oiio", uuid.uuid4().hex
+    )
 
     files_info = get_server_files_info()
     file_info = _find_file_info("oiio", files_info)
@@ -330,11 +474,14 @@ def download_oiio(progress=None):
     _download_file(file_info, dirpath, progress=progress)
 
     oiio_info = get_downloaded_oiio_info()
-    existing_item = None
-    for item in oiio_info:
-        if item["root"] == dirpath:
-            existing_item = item
-            break
+    existing_item = (
+        (
+            item
+            for item in oiio_info
+            if item["root"] == dirpath
+        ),
+        None
+    )
 
     if existing_item is None:
         existing_item = {}
@@ -347,17 +494,7 @@ def download_oiio(progress=None):
     })
     store_downloaded_oiio_info(oiio_info)
 
-    _ThirdPartyCache.oiio_download_needed = False
-
-
-def get_custom_ffmpeg_arguments(tool_name, settings):
-    # TODO implement
-    return []
-
-
-def get_custom_oiio_arguments(tool_name, settings):
-    # TODO implement
-    return []
+    _OIIOArgs.download_needed = False
 
 
 def get_ffmpeg_arguments(tool_name="ffmpeg"):
@@ -368,24 +505,13 @@ def get_ffmpeg_arguments(tool_name="ffmpeg"):
             tool for which arguments should be returned.
 
     Returns:
-        list[str]: Path to OCIO config directory.
+        list[str]: Path to OpenImageIO directory.
     """
 
-    if _ThirdPartyCache.ffmpeg_arguments is not NOT_SET:
-        return _ThirdPartyCache.ffmpeg_arguments
-
-    settings = ayon_api.get_addon_settings(ADDON_NAME, __version__)
-    args = get_custom_ffmpeg_arguments(tool_name, settings)
-    if args:
-        return args
-
-    if is_ffmpeg_download_needed():
-        download_ffmpeg()
-    return [os.path.join(
-        get_download_dir(),
-        "ffmpeg",
-        tool_name
-    )]
+    args = _FFmpegArgs.tools.get(tool_name, NOT_SET)
+    if args is NOT_SET:
+        args = _fill_ffmpeg_tool_args(tool_name)
+    return copy.deepcopy(args)
 
 
 def get_oiio_arguments(tool_name="oiiotool"):
@@ -401,18 +527,7 @@ def get_oiio_arguments(tool_name="oiiotool"):
         str: Path to zip info file.
     """
 
-    if _ThirdPartyCache.oiio_arguments is not NOT_SET:
-        return _ThirdPartyCache.oiio_arguments
-
-    settings = ayon_api.get_addon_settings(ADDON_NAME, __version__)
-    args = get_custom_oiio_arguments(tool_name, settings)
-    if args:
-        return args
-
-    if is_oiio_download_needed():
-        download_oiio()
-    return [os.path.join(
-        get_download_dir(),
-        "oiio",
-        tool_name
-    )]
+    args = _OIIOArgs.tools.get(tool_name, NOT_SET)
+    if args is NOT_SET:
+        args = _fill_oiio_tool_args(tool_name)
+    return copy.deepcopy(args)
