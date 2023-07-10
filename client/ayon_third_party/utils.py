@@ -285,11 +285,19 @@ def _fill_ffmpeg_tool_args(tool_name, addon_settings=None):
         ["custom_roots"]
         [platform_name]
     )
-    filtered_roots = [
-        root
-        for root in custom_roots
-        if root and os.path.exists(root)
-    ]
+    filtered_roots = []
+    format_data = dict(os.environ.items())
+    for root in custom_roots:
+        if not root:
+            continue
+        try:
+            root = root.format(**format_data)
+        except (ValueError, KeyError):
+            print("Failed to format root '{}'".format(root))
+
+        if os.path.exists(root):
+            filtered_roots.append(root)
+
     final_args = None
     for root in filtered_roots:
         tool_path = os.path.join(root, tool_name)
@@ -342,11 +350,19 @@ def _fill_oiio_tool_args(tool_name, addon_settings=None):
         ["custom_roots"]
         [platform_name]
     )
-    filtered_roots = [
-        root
-        for root in custom_roots
-        if os.path.exists(root)
-    ]
+    filtered_roots = []
+    format_data = dict(os.environ.items())
+    for root in custom_roots:
+        if not root:
+            continue
+        try:
+            root = root.format(**format_data)
+        except (ValueError, KeyError):
+            print("Failed to format root '{}'".format(root))
+
+        if os.path.exists(root):
+            filtered_roots.append(root)
+
     final_args = None
     for root in filtered_roots:
         tool_path = os.path.join(root, tool_name)
