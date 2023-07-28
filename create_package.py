@@ -280,7 +280,13 @@ def download_ffmpeg_zip(downloads_dir: Path, log: logging.Logger):
         urllib.request.urlretrieve(src_url, zip_path)
         log.info("FFmpeg zip download - finished")
 
+        file_checksum = calculate_file_checksum(
+            zip_path, checksum_algorithm)
 
+        if checksum != file_checksum:
+            raise Exception(
+                f"FFmpeg zip checksum mismatch: {file_checksum} != {checksum}"
+            )
 
     return zip_files_info
 
@@ -313,6 +319,11 @@ def download_oiio_zip(downloads_dir: Path, log: logging.Logger):
         urllib.request.urlretrieve(src_url, zip_path)
         log.info("OIIO zip download - finished")
 
+        file_checksum = calculate_file_checksum(zip_path, checksum_algorithm)
+        if file_checksum != checksum:
+            raise Exception(
+                f"OIIO zip checksum mismatch: {file_checksum} != {checksum}"
+            )
 
     return zip_files_info
 
