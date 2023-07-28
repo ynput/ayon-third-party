@@ -42,8 +42,8 @@ ADDON_CLIENT_DIR = "ayon_third_party"
 DISTRIBUTE_SOURCE_URL = "https://distribute.openpype.io/thirdparty"
 FFMPEG_SOURCES = {
     "windows": {
-        "url": f"{DISTRIBUTE_SOURCE_URL}/ffmpeg-4.4-windows.zip",
-        "checksum": "dd51ba29d64ee238e7c4c3c7301b19754c3f0ee2e2a729c20a0e2789e72db925",
+        "url": f"{DISTRIBUTE_SOURCE_URL}/ffmpeg-4.4-windows-2.zip",
+        "checksum": "5f09109c96a3e53beec042e969653716324b467c66788807e69e81c233e19d20",
         "checksum_algorithm": "sha256",
     },
     "linux": {
