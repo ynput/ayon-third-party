@@ -247,14 +247,14 @@ def download_ffmpeg_zip(private_dir, log):
     for platform_name, platform_info in FFMPEG_SOURCES.items():
         src_url = platform_info["url"]
         filename = src_url.split("/")[-1]
-        ocio_zip_path = private_dir / filename
-        log.debug(f"FFmpeg zip from {src_url} -> {ocio_zip_path}")
+        zip_path = private_dir / filename
+        log.debug(f"FFmpeg zip from {src_url} -> {zip_path}")
 
         log.info("FFmpeg zip download - started")
-        urllib.request.urlretrieve(src_url, ocio_zip_path)
+        urllib.request.urlretrieve(src_url, zip_path)
         log.info("FFmpeg zip download - finished")
 
-        with open(ocio_zip_path, "rb") as stream:
+        with open(zip_path, "rb") as stream:
             filehash = hashlib.sha256(stream.read()).hexdigest()
 
         zip_files_info.append({
@@ -273,14 +273,14 @@ def download_oiio_zip(private_dir, log):
     for platform_name, platform_info in OIIO_SOURCES.items():
         src_url = platform_info["url"]
         filename = src_url.split("/")[-1]
-        ocio_zip_path = private_dir / filename
-        log.debug(f"OIIO zip from {src_url} -> {ocio_zip_path}")
+        zip_path = private_dir / filename
+        log.debug(f"OIIO zip from {src_url} -> {zip_path}")
 
         log.info("OIIO zip download - started")
-        urllib.request.urlretrieve(src_url, ocio_zip_path)
+        urllib.request.urlretrieve(src_url, zip_path)
         log.info("OIIO zip download - finished")
 
-        with open(ocio_zip_path, "rb") as stream:
+        with open(zip_path, "rb") as stream:
             filehash = hashlib.sha256(stream.read()).hexdigest()
 
         zip_files_info.append({
@@ -382,8 +382,8 @@ def main(
     ffmpeg_files_info = download_ffmpeg_zip(private_dir, log)
     oiio_files_info = download_oiio_zip(private_dir, log)
 
-    ocio_zip_info_path = private_dir / "files_info.json"
-    with open(ocio_zip_info_path, "w") as stream:
+    zips_info_path = private_dir / "files_info.json"
+    with open(zips_info_path, "w") as stream:
         json.dump(ffmpeg_files_info + oiio_files_info, stream)
 
     zip_client_side(addon_output_dir, current_dir, log)
