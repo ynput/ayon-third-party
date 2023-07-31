@@ -94,6 +94,15 @@ IGNORE_FILE_PATTERNS = [
 ]
 
 
+def calculate_file_checksum(filepath, hash_algorithm, chunk_size=10000):
+    func = getattr(hashlib, hash_algorithm)
+    hash_obj = func()
+    with open(filepath, "rb") as f:
+        for chunk in iter(lambda: f.read(chunk_size), b""):
+            hash_obj.update(chunk)
+    return hash_obj.hexdigest()
+
+
 class ZipFileLongPaths(zipfile.ZipFile):
     """Allows longer paths in zip files.
 
@@ -242,54 +251,80 @@ def zip_client_side(addon_package_dir, current_dir, log):
         zipf.write(src_version_path, dst_version_path)
 
 
-def download_ffmpeg_zip(private_dir, log):
+def download_ffmpeg_zip(downloads_dir: Path, log: logging.Logger):
     zip_files_info = []
     for platform_name, platform_info in FFMPEG_SOURCES.items():
         src_url = platform_info["url"]
         filename = src_url.split("/")[-1]
-        zip_path = private_dir / filename
+        zip_path = downloads_dir / filename
+        checksum = platform_info["checksum"]
+        checksum_algorithm = platform_info["checksum_algorithm"]
+        zip_files_info.append({
+            "name": "ffmpeg",
+            "filename": filename,
+            "checksum": checksum,
+            "checksum_algorithm": checksum_algorithm,
+            "platform": platform_name,
+        })
+        if zip_path.exists():
+            file_checksum = calculate_file_checksum(
+                zip_path, checksum_algorithm)
+            if checksum == file_checksum:
+                log.debug(f"FFmpeg zip from {src_url} already exists")
+                continue
+            os.remove(zip_path)
+
         log.debug(f"FFmpeg zip from {src_url} -> {zip_path}")
 
         log.info("FFmpeg zip download - started")
         urllib.request.urlretrieve(src_url, zip_path)
         log.info("FFmpeg zip download - finished")
 
-        with open(zip_path, "rb") as stream:
-            filehash = hashlib.sha256(stream.read()).hexdigest()
+        file_checksum = calculate_file_checksum(
+            zip_path, checksum_algorithm)
 
-        zip_files_info.append({
-            "name": "ffmpeg",
-            "filename": filename,
-            "checksum": filehash,
-            "checksum_algorithm": "sha256",
-            "platform": platform_name,
-        })
+        if checksum != file_checksum:
+            raise Exception(
+                f"FFmpeg zip checksum mismatch: {file_checksum} != {checksum}"
+            )
 
     return zip_files_info
 
 
-def download_oiio_zip(private_dir, log):
+def download_oiio_zip(downloads_dir: Path, log: logging.Logger):
     zip_files_info = []
     for platform_name, platform_info in OIIO_SOURCES.items():
         src_url = platform_info["url"]
         filename = src_url.split("/")[-1]
-        zip_path = private_dir / filename
+        zip_path = downloads_dir / filename
+        checksum = platform_info["checksum"]
+        checksum_algorithm = platform_info["checksum_algorithm"]
+        zip_files_info.append({
+            "name": "oiio",
+            "filename": filename,
+            "checksum": checksum,
+            "checksum_algorithm": checksum_algorithm,
+            "platform": platform_name
+        })
+        if zip_path.exists():
+            file_checksum = calculate_file_checksum(
+                zip_path, checksum_algorithm)
+            if checksum == file_checksum:
+                log.debug(f"OIIO zip from {src_url} already exists")
+                continue
+            os.remove(zip_path)
         log.debug(f"OIIO zip from {src_url} -> {zip_path}")
 
         log.info("OIIO zip download - started")
         urllib.request.urlretrieve(src_url, zip_path)
         log.info("OIIO zip download - finished")
 
-        with open(zip_path, "rb") as stream:
-            filehash = hashlib.sha256(stream.read()).hexdigest()
+        file_checksum = calculate_file_checksum(zip_path, checksum_algorithm)
+        if file_checksum != checksum:
+            raise Exception(
+                f"OIIO zip checksum mismatch: {file_checksum} != {checksum}"
+            )
 
-        zip_files_info.append({
-            "name": "oiio",
-            "filename": filename,
-            "checksum": filehash,
-            "checksum_algorithm": "sha256",
-            "platform": platform_name
-        })
     return zip_files_info
 
 
@@ -353,6 +388,13 @@ def main(
     if not output_dir:
         output_dir = os.path.join(current_dir, "package")
 
+    downloads_dir = Path(os.path.join(current_dir, "downloads"))
+    downloads_dir.mkdir(exist_ok=True)
+
+    ffmpeg_files_info = download_ffmpeg_zip(downloads_dir, log)
+    oiio_files_info = download_oiio_zip(downloads_dir, log)
+    files_info = ffmpeg_files_info + oiio_files_info
+
     version_filepath = os.path.join(current_dir, "version.py")
     version_content = {}
     with open(version_filepath, "r") as stream:
@@ -379,8 +421,11 @@ def main(
     if not private_dir.exists():
         private_dir.mkdir(parents=True)
 
-    ffmpeg_files_info = download_ffmpeg_zip(private_dir, log)
-    oiio_files_info = download_oiio_zip(private_dir, log)
+    for file_info in files_info:
+        filename = file_info["filename"]
+        src_path = downloads_dir / filename
+        dst_path = private_dir / filename
+        shutil.copy(src_path, dst_path)
 
     zips_info_path = private_dir / "files_info.json"
     with open(zips_info_path, "w") as stream:
