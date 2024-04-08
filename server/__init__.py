@@ -29,7 +29,7 @@ class ThirdPartyDistAddon(BaseServerAddon):
         user: UserEntity = Depends(dep_current_user)
     ) -> list[dict[str, str]]:
         info_filepath = os.path.join(
-            CURRENT_DIR, "private", "files_info.json"
+            os.path.dirname(CURRENT_DIR), "private", "files_info.json"
         )
         with open(info_filepath, "r") as stream:
             data = json.load(stream)
