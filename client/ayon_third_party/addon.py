@@ -1,4 +1,4 @@
-from openpype.modules import OpenPypeModule, ITrayModule
+from ayon_core.addon import AYONAddon, ITrayModule
 
 from .constants import ADDON_NAME
 from .version import __version__
@@ -8,7 +8,7 @@ from .utils import (
 )
 
 
-class ThirdPartyDistAddon(OpenPypeModule, ITrayModule):
+class ThirdPartyDistAddon(AYONAddon, ITrayModule):
     """Addon to deploy 3rd party binary dependencies.
 
     Addon can also skip distribution of binaries from server and can
@@ -20,8 +20,7 @@ class ThirdPartyDistAddon(OpenPypeModule, ITrayModule):
     name = ADDON_NAME
     version = __version__
 
-    def initialize(self, module_settings):
-        self.enabled = True
+    def initialize(self, settings):
         self._download_window = None
 
     def tray_exit(self):

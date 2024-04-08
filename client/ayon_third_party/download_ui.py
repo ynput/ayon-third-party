@@ -6,7 +6,7 @@ from qtpy import QtWidgets, QtCore
 
 from ayon_api import TransferProgress
 
-from openpype import style
+from ayon_core import style
 
 from .utils import (
     download_ffmpeg,
