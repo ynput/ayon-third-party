@@ -7,16 +7,12 @@ from ayon_server.addons import BaseServerAddon
 from ayon_server.api.dependencies import dep_current_user
 from ayon_server.entities import UserEntity
 
-from .version import __version__
 from .settings import ThirdPartySettings
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class ThirdPartyDistAddon(BaseServerAddon):
-    name = "ayon_third_party"
-    title = "3rd Party Distribution"
-    version = __version__
     settings_model = ThirdPartySettings
 
     def initialize(self):
