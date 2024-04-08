@@ -1,4 +1,4 @@
-from ayon_core.addon import AYONAddon, ITrayModule
+from ayon_core.addon import AYONAddon, ITrayAddon
 
 from .constants import ADDON_NAME
 from .version import __version__
@@ -8,7 +8,7 @@ from .utils import (
 )
 
 
-class ThirdPartyDistAddon(AYONAddon, ITrayModule):
+class ThirdPartyDistAddon(AYONAddon, ITrayAddon):
     """Addon to deploy 3rd party binary dependencies.
 
     Addon can also skip distribution of binaries from server and can
