@@ -4,3 +4,7 @@ name = "ayon_third_party"
 version = "1.1.1-dev.1"
 title = "3rd Party Distribution"
 client_dir = "ayon_third_party"
+
+ayon_required_addons = {
+    "core": ">=0.3.0",
+}
