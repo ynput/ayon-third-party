@@ -59,8 +59,8 @@ def get_addon_settings():
 def get_download_dir(create_if_missing=True):
     """Dir path where files are downloaded."""
 
-    if create_if_missing and not os.path.exists(DOWNLOAD_DIR):
-        os.makedirs(DOWNLOAD_DIR)
+    if create_if_missing:
+        os.makedirs(DOWNLOAD_DIR, exist_ok=True)
     return DOWNLOAD_DIR
 
 
@@ -149,8 +149,7 @@ def filter_file_info(name):
 def store_file_info(name, info):
     filepath = _get_info_path(name)
     root, filename = os.path.split(filepath)
-    if not os.path.exists(root):
-        os.makedirs(root)
+    os.makedirs(root, exist_ok=True)
     with open(filepath, "w") as stream:
         json.dump(info, stream)
 
