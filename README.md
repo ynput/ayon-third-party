@@ -6,6 +6,7 @@ AYON core requires ffmpeg and OpenImageIO tools for image processing. Both execu
 
 Files are not part of repository and are downloaded on package creation. We do not expect the package creation to be done often, we hope that it should be done once a year with new releases of dependency binaries.
 
+
 ## How to start
 Run `./create_package.py` script which should download required files. Created package should be moved to server addons. Enable the addon on server, and that's it.
 
