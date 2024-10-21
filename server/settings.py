@@ -87,7 +87,7 @@ class OIIOSettings(BaseSettingsModel):
     custom_args: CustomOIIOArgumentsModel = Field(
         default_factory=CustomOIIOArgumentsModel,
         title="Custom arguments",
-        description="Custom arguments that will be used to launch ffmpeg tools",
+        description="Custom arguments that will be used to launch OIIO tools",
     )
 
 
@@ -98,8 +98,10 @@ class ThirdPartySettings(BaseSettingsModel):
     ffmpeg: FFmpegSettings = Field(
         default_factory=FFmpegSettings,
         title="FFmpeg",
+        description="Configure library tools for transcoding and conversion of media.",
     )
     oiio: OIIOSettings = Field(
         default_factory=OIIOSettings,
         title="OpenImageIO",
+        description="Configure library for image processing and format conversion using OIIO.",
     )
