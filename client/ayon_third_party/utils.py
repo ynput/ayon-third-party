@@ -128,7 +128,7 @@ def validate_oiio_args(args):
 
 
 def _get_addon_endpoint():
-    return "addons/{}/{}".format(ADDON_NAME, __version__)
+    return f"addons/{ADDON_NAME}/{__version__}"
 
 
 def _get_info_path(name):
@@ -269,7 +269,7 @@ def _fill_ffmpeg_tool_args(tool_name, addon_settings=None):
         path_parts = [get_downloaded_ffmpeg_root()]
         if platform_name == "windows":
             path_parts.append("bin")
-            tool_name = "{}.exe".format(tool_name)
+            tool_name = f"{tool_name}.exe"
         path_parts.append(tool_name)
 
         args = [
@@ -334,7 +334,7 @@ def _fill_oiio_tool_args(tool_name, addon_settings=None):
         if platform_name == "linux":
             path_parts.append("bin")
         elif platform_name == "windows":
-            tool_name = "{}.exe".format(tool_name)
+            tool_name = f"{tool_name}.exe"
         path_parts.append(tool_name)
 
         args = [
@@ -363,7 +363,7 @@ def _fill_oiio_tool_args(tool_name, addon_settings=None):
         try:
             root = root.format(**format_data)
         except (ValueError, KeyError):
-            print("Failed to format root '{}'".format(root))
+            print(f"Failed to format root '{root}'")
 
         if os.path.exists(root):
             filtered_roots.append(root)
