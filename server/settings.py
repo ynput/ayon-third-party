@@ -106,8 +106,4 @@ class ThirdPartySettings(BaseSettingsModel):
     oiio: OIIOSettings = Field(
         default_factory=OIIOSettings,
         title="OpenImageIO",
-        description=(
-            "Configure library for image processing and format"
-            " conversion using OIIO."
-        ),
     )
