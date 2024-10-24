@@ -102,9 +102,6 @@ class ThirdPartySettings(BaseSettingsModel):
     ffmpeg: FFmpegSettings = Field(
         default_factory=FFmpegSettings,
         title="FFmpeg",
-        description=(
-            "Configure library tools for transcoding and conversion of media."
-        ),
     )
     oiio: OIIOSettings = Field(
         default_factory=OIIOSettings,
