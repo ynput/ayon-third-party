@@ -8,10 +8,13 @@ import copy
 import ayon_api
 
 from ayon_common import (
-    get_ayon_appdirs,
     validate_file_checksum,
     extract_archive_file,
 )
+try:
+    from ayon_core.lib import get_launcher_storage_dir
+except ImportError:
+    from ayon_core.lib import get_ayon_appdirs as get_launcher_storage_dir
 
 from .version import __version__
 from .constants import ADDON_NAME
@@ -129,8 +132,9 @@ def _get_addon_endpoint():
 
 
 def _get_info_path(name):
-    return get_ayon_appdirs(
-        "addons", "{}-{}.json".format(ADDON_NAME, name))
+    return get_launcher_storage_dir(
+        "addons", f"{ADDON_NAME}-{name}.json"
+    )
 
 
 def filter_file_info(name):
