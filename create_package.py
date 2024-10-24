@@ -43,29 +43,39 @@ DISTRIBUTE_SOURCE_URL: str = "https://distribute.openpype.io/thirdparty"
 FFMPEG_SOURCES = {
     "windows": {
         "url": f"{DISTRIBUTE_SOURCE_URL}/ffmpeg-4.4-windows-2.zip",
-        "checksum": "5f09109c96a3e53beec042e969653716324b467c66788807e69e81c233e19d20",
+        "checksum": (
+            "5f09109c96a3e53beec042e969653716324b467c66788807e69e81c233e19d20"
+        ),
         "checksum_algorithm": "sha256",
     },
     "linux": {
         "url": f"{DISTRIBUTE_SOURCE_URL}/ffmpeg-4.4-linux.tgz",
-        "checksum": "10b9beda57cfbb69b9ed0ce896c0c8d99227b26ca8b9f611040c4752e365cbe9",
+        "checksum": (
+            "10b9beda57cfbb69b9ed0ce896c0c8d99227b26ca8b9f611040c4752e365cbe9"
+        ),
         "checksum_algorithm": "sha256",
     },
     "darwin": {
         "url": f"{DISTRIBUTE_SOURCE_URL}/ffmpeg-4.4-macos.tgz",
-        "checksum": "95f43568338c275f80dc0cab1e1836a2e2270f856f0e7b204440d881dd74fbdb",
+        "checksum": (
+            "95f43568338c275f80dc0cab1e1836a2e2270f856f0e7b204440d881dd74fbdb"
+        ),
         "checksum_algorithm": "sha256",
     }
 }
 OIIO_SOURCES = {
     "windows": {
         "url": f"{DISTRIBUTE_SOURCE_URL}/oiio_tools-2.3.10-windows.zip",
-        "checksum": "b9950f5d2fa3720b52b8be55bacf5f56d33f9e029d38ee86534995f3d8d253d2",
+        "checksum": (
+            "b9950f5d2fa3720b52b8be55bacf5f56d33f9e029d38ee86534995f3d8d253d2"
+        ),
         "checksum_algorithm": "sha256",
     },
     "linux": {
         "url": f"{DISTRIBUTE_SOURCE_URL}/oiio_tools-2.2.20-linux-centos7.tgz",
-        "checksum": "3894dec7e4e521463891a869586850e8605f5fd604858b674c87323bf33e273d",
+        "checksum": (
+            "3894dec7e4e521463891a869586850e8605f5fd604858b674c87323bf33e273d"
+        ),
         "checksum_algorithm": "sha256",
     }
 }
