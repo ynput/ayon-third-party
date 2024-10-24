@@ -1,9 +1,7 @@
-from pydantic import Field, validator
+from pydantic import Field
 
 from ayon_server.settings import (
     BaseSettingsModel,
-    task_types_enum,
-    MultiplatformPathModel,
     MultiplatformPathListModel,
 )
 
@@ -38,7 +36,9 @@ class FFmpegSettings(BaseSettingsModel):
     custom_args: CustomFFmpegArgumentsModel = Field(
         default_factory=CustomFFmpegArgumentsModel,
         title="Custom arguments",
-        description="Custom arguments that will be used to launch ffmpeg tools",
+        description=(
+            "Custom arguments that will be used to launch ffmpeg tools"
+        ),
     )
 
 
@@ -82,12 +82,16 @@ class OIIOSettings(BaseSettingsModel):
     custom_roots: MultiplatformPathListModel = Field(
         default_factory=MultiplatformPathListModel,
         title="Custom root",
-        description="Root to directory where OpenImageIO binaries can be found",
+        description=(
+            "Root to directory where OpenImageIO binaries can be found"
+        ),
     )
     custom_args: CustomOIIOArgumentsModel = Field(
         default_factory=CustomOIIOArgumentsModel,
         title="Custom arguments",
-        description="Custom arguments that will be used to launch ffmpeg tools",
+        description=(
+            "Custom arguments that will be used to launch ffmpeg tools"
+        ),
     )
 
 
