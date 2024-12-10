@@ -90,7 +90,7 @@ class OIIOSettings(BaseSettingsModel):
         default_factory=CustomOIIOArgumentsModel,
         title="Custom arguments",
         description=(
-            "Custom arguments that will be used to launch ffmpeg tools"
+            "Custom arguments that will be used to launch OIIO tools"
         ),
     )
 
