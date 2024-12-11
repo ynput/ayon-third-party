@@ -1,6 +1,7 @@
 import uuid
 import threading
 from functools import partial
+from typing import Optional, Callable
 
 from qtpy import QtWidgets, QtCore
 
@@ -15,7 +16,7 @@ from .utils import (
 
 
 class DownloadItem:
-    def __init__(self, title, func):
+    def __init__(self, title: str, func: Callable):
         self._id = uuid.uuid4().hex
         progress = TransferProgress()
         self._func = partial(func, progress)
@@ -24,11 +25,11 @@ class DownloadItem:
         self._thread = None
 
     @property
-    def id(self):
+    def id(self) -> str:
         return self._id
 
     @property
-    def finished(self):
+    def finished(self) -> bool:
         if self._thread is None:
             return True
         return not self._thread.is_alive()
@@ -46,7 +47,7 @@ class DownloadItem:
 
 
 class DownloadController:
-    def __init__(self, ffmpeg, oiio):
+    def __init__(self, ffmpeg: bool, oiio: bool):
         items = []
         if ffmpeg:
             items.append(DownloadItem("FFmpeg", download_ffmpeg))
@@ -71,15 +72,15 @@ class DownloadController:
             yield item
 
     @property
-    def download_started(self):
+    def download_started(self) -> bool:
         return self._download_started
 
     @property
-    def download_finished(self):
+    def download_finished(self) -> bool:
         return self._download_finished
 
     @property
-    def is_downloading(self):
+    def is_downloading(self) -> bool:
         if not self._download_started or self._download_finished:
             return False
 
@@ -104,8 +105,8 @@ class DownloadController:
 
 
 class DownloadItemWidget(QtWidgets.QWidget):
-    def __init__(self, download_item, parent):
-        super(DownloadItemWidget, self).__init__(parent)
+    def __init__(self, download_item: DownloadItem, parent: QtWidgets.QWidget):
+        super().__init__(parent)
 
         title_label = QtWidgets.QLabel(download_item.title, self)
         progress_label = QtWidgets.QLabel("0%", self)
@@ -147,8 +148,12 @@ class DownloadItemWidget(QtWidgets.QWidget):
 class DownloadWindow(QtWidgets.QWidget):
     finished = QtCore.Signal()
 
-    def __init__(self, controller, parent=None):
-        super(DownloadWindow, self).__init__(parent=parent)
+    def __init__(
+        self,
+        controller: DownloadController,
+        parent: Optional[QtWidgets.QWidget] = None,
+    ):
+        super().__init__(parent=parent)
 
         self.setWindowTitle("Downloading 3rd party dependencies")
 
@@ -178,7 +183,7 @@ class DownloadWindow(QtWidgets.QWidget):
         self._start_on_show = False
 
     def showEvent(self, event):
-        super(DownloadWindow, self).showEvent(event)
+        super().showEvent(event)
         if self._first_show:
             self._first_show = False
             # Set stylesheet and resize
@@ -219,7 +224,11 @@ class DownloadWindow(QtWidgets.QWidget):
         self._timer.start()
 
 
-def show_download_window(ffmpeg, oiio, parent=None):
+def show_download_window(
+    ffmpeg: bool,
+    oiio: bool,
+    parent: Optional[QtWidgets.QWidget] = None,
+) -> DownloadWindow:
     controller = DownloadController(ffmpeg, oiio)
     window = DownloadWindow(controller, parent=parent)
     window.show()
