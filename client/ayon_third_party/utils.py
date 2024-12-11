@@ -46,7 +46,9 @@ if typing.TYPE_CHECKING:
 
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-DOWNLOAD_DIR = os.path.join(CURRENT_DIR, "downloads")
+DOWNLOAD_DIR = os.path.join(
+    CURRENT_DIR, "downloads", platform.system().lower()
+)
 NOT_SET = type("NOT_SET", (), {"__bool__": lambda: False})()
 IMPLEMENTED_ARCHIVE_FORMATS = {
     ".zip", ".tar", ".tgz", ".tar.gz", ".tar.xz", ".tar.bz2"
