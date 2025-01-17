@@ -153,81 +153,83 @@ def calculate_file_checksum(filepath, hash_algorithm, chunk_size=10000):
     return hash_obj.hexdigest()
 
 
-def download_ffmpeg_zip(downloads_dir: str, log: logging.Logger):
-    zip_files_info = []
+def download_ffmpeg_archive(downloads_dir: str, log: logging.Logger):
+    archive_files_info = []
     for platform_name, platform_info in FFMPEG_SOURCES.items():
         src_url: str = platform_info["url"]
         filename: str = src_url.split("/")[-1]
-        zip_path: str = os.path.join(downloads_dir, filename)
+        archive_path: str = os.path.join(downloads_dir, filename)
         checksum: str = platform_info["checksum"]
         checksum_algorithm: str = platform_info["checksum_algorithm"]
-        zip_files_info.append({
+        archive_files_info.append({
             "name": "ffmpeg",
             "filename": filename,
             "checksum": checksum,
             "checksum_algorithm": checksum_algorithm,
             "platform": platform_name,
         })
-        if os.path.exists(zip_path):
+        if os.path.exists(archive_path):
             file_checksum: str = calculate_file_checksum(
-                zip_path, checksum_algorithm)
+                archive_path, checksum_algorithm)
             if checksum == file_checksum:
-                log.debug(f"FFmpeg zip from {src_url} already exists")
+                log.debug(f"FFmpeg archive from {src_url} already exists")
                 continue
-            os.remove(zip_path)
+            os.remove(archive_path)
 
-        log.debug(f"FFmpeg zip from {src_url} -> {zip_path}")
+        log.debug(f"FFmpeg archive from {src_url} -> {archive_path}")
 
-        log.info("FFmpeg zip download - started")
-        urllib.request.urlretrieve(src_url, zip_path)
-        log.info("FFmpeg zip download - finished")
+        log.info("FFmpeg archive download - started")
+        urllib.request.urlretrieve(src_url, archive_path)
+        log.info("FFmpeg archive download - finished")
 
         file_checksum = calculate_file_checksum(
-            zip_path, checksum_algorithm)
+            archive_path, checksum_algorithm)
 
         if checksum != file_checksum:
             raise Exception(
-                f"FFmpeg zip checksum mismatch: {file_checksum} != {checksum}"
+                f"FFmpeg archive checksum mismatch:"
+                f" {file_checksum} != {checksum}"
             )
 
-    return zip_files_info
+    return archive_files_info
 
 
-def download_oiio_zip(downloads_dir: str, log: logging.Logger):
-    zip_files_info = []
+def download_oiio_archive(downloads_dir: str, log: logging.Logger):
+    archive_files_info = []
     for platform_name, platform_info in OIIO_SOURCES.items():
         src_url: str = platform_info["url"]
         filename: str = src_url.split("/")[-1]
-        zip_path: str = os.path.join(downloads_dir, filename)
+        archive_path: str = os.path.join(downloads_dir, filename)
         checksum: str = platform_info["checksum"]
         checksum_algorithm: str = platform_info["checksum_algorithm"]
-        zip_files_info.append({
+        archive_files_info.append({
             "name": "oiio",
             "filename": filename,
             "checksum": checksum,
             "checksum_algorithm": checksum_algorithm,
             "platform": platform_name
         })
-        if os.path.exists(zip_path):
+        if os.path.exists(archive_path):
             file_checksum = calculate_file_checksum(
-                zip_path, checksum_algorithm)
+                archive_path, checksum_algorithm)
             if checksum == file_checksum:
-                log.debug(f"OIIO zip from {src_url} already exists")
+                log.debug(f"OIIO archive from {src_url} already exists")
                 continue
-            os.remove(zip_path)
-        log.debug(f"OIIO zip from {src_url} -> {zip_path}")
+            os.remove(archive_path)
+        log.debug(f"OIIO archive from {src_url} -> {archive_path}")
 
-        log.info("OIIO zip download - started")
-        urllib.request.urlretrieve(src_url, zip_path)
-        log.info("OIIO zip download - finished")
+        log.info("OIIO archive download - started")
+        urllib.request.urlretrieve(src_url, archive_path)
+        log.info("OIIO archive download - finished")
 
-        file_checksum = calculate_file_checksum(zip_path, checksum_algorithm)
+        file_checksum = calculate_file_checksum(archive_path, checksum_algorithm)
         if file_checksum != checksum:
             raise Exception(
-                f"OIIO zip checksum mismatch: {file_checksum} != {checksum}"
+                f"OIIO archive checksum mismatch:"
+                f" {file_checksum} != {checksum}"
             )
 
-    return zip_files_info
+    return archive_files_info
 
 
 def _get_yarn_executable() -> Union[str, None]:
@@ -527,8 +529,8 @@ def main(
     downloads_dir = os.path.join(CURRENT_ROOT, "downloads")
     os.makedirs(downloads_dir, exist_ok=True)
 
-    ffmpeg_files_info = download_ffmpeg_zip(downloads_dir, log)
-    oiio_files_info = download_oiio_zip(downloads_dir, log)
+    ffmpeg_files_info = download_ffmpeg_archive(downloads_dir, log)
+    oiio_files_info = download_oiio_archive(downloads_dir, log)
     files_info = ffmpeg_files_info + oiio_files_info
 
     files_info_stream = io.BytesIO(json.dumps(files_info).encode())
