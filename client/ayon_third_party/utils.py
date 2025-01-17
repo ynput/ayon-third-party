@@ -359,6 +359,11 @@ def _get_addon_endpoint() -> str:
 
 
 def _get_resources_dir(*args) -> str:
+    # TODO use helper function from ayon-core for resources directory
+    #   when implemented in ayon-core addon.
+    addons_resources_dir = os.getenv("AYON_ADDONS_RESOURCES_DIR")
+    if addons_resources_dir:
+        return os.path.join(addons_resources_dir, ADDON_NAME, *args)
     return get_launcher_storage_dir(
         "addons_resources", ADDON_NAME, *args
     )
@@ -371,8 +376,6 @@ def _get_info_path(name: str) -> str:
         return get_launcher_storage_dir(
             "addons", f"{ADDON_NAME}-{name}.json"
         )
-    # TODO use addons resources directory when implemented in AYON launcher
-    #   and ayon-core
     return _get_resources_dir(f"{name}.json")
 
 
