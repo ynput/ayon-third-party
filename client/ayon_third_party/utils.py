@@ -62,6 +62,8 @@ IMPLEMENTED_ARCHIVE_FORMATS = {
 }
 # How long to wait for other process to extract downloaded content
 EXTRACT_WAIT_TRESHOLD_TIME = 20
+# Filename where is stored progress of extraction
+EXTRACT_PROGRESS_FILENAME = "extract_progress.json"
 
 log = Logger.get_logger(__name__)
 
@@ -393,6 +395,14 @@ def _store_downloaded_oiio_info(oiio_info: List["ToolInfo"]):
     _store_file_info("oiio", oiio_info)
 
 
+def _read_progress_file(progress_path: str):
+    try:
+        with open(progress_path, "r") as stream:
+            return json.loads(stream.read())
+    except Exception:
+        return {}
+
+
 def get_server_files_info() -> List["ToolDownloadInfo"]:
     """Receive zip file info from server.
 
@@ -647,11 +657,13 @@ def is_ffmpeg_download_needed(
     if ffmpeg_settings["use_downloaded"]:
         # Check what is required by server
         ffmpeg_root = get_downloaded_ffmpeg_root()
-        download_needed = True
+        progress_info = {}
         if ffmpeg_root:
-            checksum_path = os.path.join(ffmpeg_root, "checksum")
-            if os.path.exists(checksum_path):
-                download_needed = False
+            progress_path = os.path.join(
+                ffmpeg_root, EXTRACT_PROGRESS_FILENAME
+            )
+            progress_info = _read_progress_file(progress_path)
+        download_needed = progress_info.get("state") != "done"
 
     _FFmpegArgs.download_needed = download_needed
     return _FFmpegArgs.download_needed
@@ -689,10 +701,10 @@ def _download_file(
     filename = file_info["filename"]
     checksum = file_info["checksum"]
     checksum_algorithm = file_info["checksum_algorithm"]
-    checksum_file = os.path.join(dirpath, "checksum")
+    progress_path = os.path.join(dirpath, EXTRACT_PROGRESS_FILENAME)
 
     tmpdir = tempfile.mkdtemp(prefix=ADDON_NAME)
-    created_checksum = False
+    created_progress = False
     finished = False
     try:
         archive_filepath = ayon_api.download_addon_private_file(
@@ -715,22 +727,22 @@ def _download_file(
         #   downloading at first place? - That would require to store download
         #   progress somewhere to avoid stale download.
         started = time.time()
-        checksum_existed = False
+        progress_existed = False
         while True:
-            if not os.path.exists(checksum_file):
-                if checksum_existed:
+            if not os.path.exists(progress_path):
+                if progress_existed:
                     log.debug(
                         "Other processed didn't finish extraction,"
                         " trying to do so."
                     )
                 break
 
-            if not checksum_existed:
+            if not progress_existed:
                 log.debug(
                     "Other process already created checksum file"
                     " target directory. Waiting for extraction."
                 )
-            checksum_existed = True
+            progress_existed = True
             if (time.time() - started) > EXTRACT_WAIT_TRESHOLD_TIME:
                 log.debug(
                     f"Waited for treshold time ({EXTRACT_WAIT_TRESHOLD_TIME}s)."
@@ -739,27 +751,27 @@ def _download_file(
                 shutil.rmtree(dirpath)
                 break
 
-            with open(checksum_file, "r") as stream:
-                content = stream.read()
-
-            if content != "extracting":
+            progress_info = _read_progress_file(progress_path)
+            if progress_info.get("state") == "done":
                 log.debug("Other process finished extraction.")
                 return False
             time.sleep(0.1)
 
-        created_checksum = True
+        created_progress = True
 
         # Store checksum so any future processes know that this was
         # downloaded and extracted
         os.makedirs(dirpath, exist_ok=True)
-        with open(checksum_file, "w") as stream:
-            stream.write("extracting")
+        progress_info = {"state": "extracting"}
+        with open(progress_path, "w") as stream:
+            json.dump(progress_info, stream)
 
         log.debug(f"Extracting '{archive_filepath}' to '{dirpath}'.")
         extract_archive_file(archive_filepath, dirpath)
 
-        with open(checksum_file, "w") as stream:
-            stream.write(checksum)
+        progress_info["state"] = "done"
+        with open(progress_path, "w") as stream:
+            json.dump(progress_info, stream)
         finished = True
 
     finally:
@@ -768,10 +780,10 @@ def _download_file(
 
         if (
             not finished
-            and created_checksum
-            and os.path.exists(checksum_file)
+            and created_progress
+            and os.path.exists(progress_path)
         ):
-            os.remove(checksum_file)
+            os.remove(progress_path)
 
     return True
 
