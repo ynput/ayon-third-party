@@ -11,6 +11,7 @@ import tarfile
 import typing
 import tempfile
 import time
+import uuid
 from typing import Optional, Tuple, List, Dict, Any
 
 import ayon_api
@@ -60,10 +61,11 @@ NOT_SET = type("NOT_SET", (), {"__bool__": lambda: False})()
 IMPLEMENTED_ARCHIVE_FORMATS = {
     ".zip", ".tar", ".tgz", ".tar.gz", ".tar.xz", ".tar.bz2"
 }
-# How long to wait for other process to extract downloaded content
-EXTRACT_WAIT_TRESHOLD_TIME = 20
 # Filename where is stored progress of extraction
-EXTRACT_PROGRESS_FILENAME = "extract_progress.json"
+DIST_PROGRESS_FILENAME = "dist_progress.json"
+# How long to wait for other process to download/extract content
+DOWNLOAD_WAIT_TRESHOLD_TIME = 20
+EXTRACT_WAIT_TRESHOLD_TIME = 20
 
 log = Logger.get_logger(__name__)
 
@@ -679,7 +681,7 @@ def is_ffmpeg_download_needed(
         progress_info = {}
         if ffmpeg_root:
             progress_path = os.path.join(
-                ffmpeg_root, EXTRACT_PROGRESS_FILENAME
+                ffmpeg_root, DIST_PROGRESS_FILENAME
             )
             progress_info = _read_progress_file(progress_path)
         download_needed = progress_info.get("state") != "done"
@@ -712,6 +714,64 @@ def is_oiio_download_needed(
     return _OIIOArgs.download_needed
 
 
+def _wait_for_other_process(progress_path: str, progress_id: str):
+    dirpath = os.path.dirname(progress_path)
+    started = time.time()
+    progress_existed = False
+    threshold_time = None
+    state = None
+    while True:
+        if not os.path.exists(progress_path):
+            if progress_existed:
+                log.debug(
+                    "Other processed didn't finish download or extraction,"
+                    " trying to do so."
+                )
+            break
+
+        progress_info = _read_progress_file(progress_path)
+        if progress_info.get("progress_id") == progress_id:
+            return False
+
+        current_state = progress_info.get("state")
+
+        if not progress_existed:
+            log.debug(
+                "Other process already created progress file"
+                " in target directory. Waiting for finishing it."
+            )
+
+        progress_existed = True
+        if current_state is None:
+            log.warning(
+                "Other process did not store 'state' to progress file."
+            )
+            return False
+
+        if current_state == "done":
+            log.debug("Other process finished extraction.")
+            return True
+
+        if current_state != state:
+            started = time.time()
+            threshold_time = None
+
+        if threshold_time is None:
+            threshold_time = EXTRACT_WAIT_TRESHOLD_TIME
+            if current_state == "downloading":
+                threshold_time = DOWNLOAD_WAIT_TRESHOLD_TIME
+
+        if (time.time() - started) > threshold_time:
+            log.debug(
+                f"Waited for treshold time ({EXTRACT_WAIT_TRESHOLD_TIME}s)."
+                f" Extracting downloaded content."
+            )
+            shutil.rmtree(dirpath)
+            break
+        time.sleep(0.1)
+    return False
+
+
 def _download_file(
     file_info: "ToolDownloadInfo",
     dirpath: str,
@@ -720,10 +780,19 @@ def _download_file(
     filename = file_info["filename"]
     checksum = file_info["checksum"]
     checksum_algorithm = file_info["checksum_algorithm"]
-    progress_path = os.path.join(dirpath, EXTRACT_PROGRESS_FILENAME)
+
+    progress_path = os.path.join(dirpath, DIST_PROGRESS_FILENAME)
+    progress_id = uuid.uuid4().hex
+    already_done = _wait_for_other_process(progress_path, progress_id)
+    if already_done:
+        return False
+
+    _makedirs(dirpath)
+    progress_info = {"state": "downloading", "progress_id": progress_id}
+    with open(progress_path, "w") as stream:
+        json.dump(progress_info, stream)
 
     tmpdir = tempfile.mkdtemp(prefix=ADDON_NAME)
-    created_progress = False
     finished = False
     try:
         archive_filepath = ayon_api.download_addon_private_file(
@@ -745,64 +814,37 @@ def _download_file(
         # NOTE This is primitive validation. We might also want to not start
         #   downloading at first place? - That would require to store download
         #   progress somewhere to avoid stale download.
-        started = time.time()
-        progress_existed = False
-        while True:
-            if not os.path.exists(progress_path):
-                if progress_existed:
-                    log.debug(
-                        "Other processed didn't finish extraction,"
-                        " trying to do so."
-                    )
-                break
+        already_done = _wait_for_other_process(progress_path, progress_id)
+        if already_done:
+            return False
 
-            if not progress_existed:
-                log.debug(
-                    "Other process already created checksum file"
-                    " target directory. Waiting for extraction."
-                )
-            progress_existed = True
-            if (time.time() - started) > EXTRACT_WAIT_TRESHOLD_TIME:
-                log.debug(
-                    f"Waited for treshold time ({EXTRACT_WAIT_TRESHOLD_TIME}s)."
-                    f" Extracting downloaded content."
-                )
-                shutil.rmtree(dirpath)
-                break
-
-            progress_info = _read_progress_file(progress_path)
-            if progress_info.get("state") == "done":
-                log.debug("Other process finished extraction.")
-                return False
-            time.sleep(0.1)
-
-        created_progress = True
-
-        # Store checksum so any future processes know that this was
-        # downloaded and extracted
+        # Store progress so any other processes know that this was
+        #   downloaded
         _makedirs(dirpath)
-        progress_info = {"state": "extracting"}
+        progress_info["state"] = "extracting"
         with open(progress_path, "w") as stream:
             json.dump(progress_info, stream)
 
         log.debug(f"Extracting '{archive_filepath}' to '{dirpath}'.")
         extract_archive_file(archive_filepath, dirpath)
 
+        finished = True
+        current_progress_info = _read_progress_file(progress_path)
+        if current_progress_info.get("progress_id") != progress_id:
+            return False
+
         progress_info["state"] = "done"
         with open(progress_path, "w") as stream:
             json.dump(progress_info, stream)
-        finished = True
 
     finally:
         if os.path.exists(tmpdir):
             shutil.rmtree(tmpdir)
 
-        if (
-            not finished
-            and created_progress
-            and os.path.exists(progress_path)
-        ):
-            os.remove(progress_path)
+        if not finished:
+            progress_info = _read_progress_file(progress_path)
+            if progress_info.get("progress_id") == progress_id:
+                os.remove(progress_path)
 
     return True
 
