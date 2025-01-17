@@ -222,7 +222,9 @@ def download_oiio_archive(downloads_dir: str, log: logging.Logger):
         urllib.request.urlretrieve(src_url, archive_path)
         log.info("OIIO archive download - finished")
 
-        file_checksum = calculate_file_checksum(archive_path, checksum_algorithm)
+        file_checksum = calculate_file_checksum(
+            archive_path, checksum_algorithm
+        )
         if file_checksum != checksum:
             raise Exception(
                 f"OIIO archive checksum mismatch:"
