@@ -16,7 +16,7 @@ from typing import Optional, Tuple, List, Dict, Any
 import ayon_api
 from ayon_api import TransferProgress
 
-from ayon_core.lib import Logger
+from ayon_core.lib import Logger, CacheItem
 try:
     from ayon_core.lib import get_launcher_storage_dir
 except ImportError:
@@ -92,7 +92,7 @@ class _FFmpegArgs:
 
 
 class _ThirdPartyCache:
-    addon_settings = NOT_SET
+    addon_settings = CacheItem(lifetime=60)
 
 
 class ZipFileLongPaths(zipfile.ZipFile):
@@ -261,11 +261,13 @@ def extract_archive_file(
 
 
 def get_addon_settings():
-    if _ThirdPartyCache.addon_settings is NOT_SET:
-        _ThirdPartyCache.addon_settings = ayon_api.get_addon_settings(
-            ADDON_NAME, __version__
+    if not _ThirdPartyCache.addon_settings.is_valid:
+        _ThirdPartyCache.addon_settings.update_data(
+            ayon_api.get_addon_settings(
+                ADDON_NAME, __version__
+            )
         )
-    return copy.deepcopy(_ThirdPartyCache.addon_settings)
+    return copy.deepcopy(_ThirdPartyCache.addon_settings.get_data())
 
 
 def _get_download_dir(create_if_missing: bool = True) -> str:
