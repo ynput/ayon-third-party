@@ -39,26 +39,26 @@ from typing import Optional, Iterable, Pattern, Union, List, Tuple
 
 import package
 
-DISTRIBUTE_SOURCE_URL: str = "https://distribute.openpype.io/thirdparty"
+DISTRIBUTE_SOURCE_URL: str = "https://distribute.ynput.io/thirdparty"
 FFMPEG_SOURCES = {
     "windows": {
-        "url": f"{DISTRIBUTE_SOURCE_URL}/ffmpeg-4.4-windows-2.zip",
+        "url": f"{DISTRIBUTE_SOURCE_URL}/ffmpeg-7.1-windows.tar.xz",
         "checksum": (
-            "5f09109c96a3e53beec042e969653716324b467c66788807e69e81c233e19d20"
+            "3d2b824136748319cc11d6d2cd99e932338ed50d851818e7b4069cd92e19992d"
         ),
         "checksum_algorithm": "sha256",
     },
     "linux": {
-        "url": f"{DISTRIBUTE_SOURCE_URL}/ffmpeg-4.4-linux.tgz",
+        "url": f"{DISTRIBUTE_SOURCE_URL}/ffmpeg-7.1-linux.tar.xz",
         "checksum": (
-            "10b9beda57cfbb69b9ed0ce896c0c8d99227b26ca8b9f611040c4752e365cbe9"
+            "ec85a3245bcda68379a356a3a8879af272f51297cb8ff9067dc82a0ae27b80d6"
         ),
         "checksum_algorithm": "sha256",
     },
     "darwin": {
-        "url": f"{DISTRIBUTE_SOURCE_URL}/ffmpeg-4.4-macos.tgz",
+        "url": f"{DISTRIBUTE_SOURCE_URL}/ffmpeg-7.1-macos-intel.tar.xz",
         "checksum": (
-            "95f43568338c275f80dc0cab1e1836a2e2270f856f0e7b204440d881dd74fbdb"
+            "4ed7a974a77ff2766f1e4e6abf08de351c9ce41b594def5c8ba4da315c5ce655"
         ),
         "checksum_algorithm": "sha256",
     }
