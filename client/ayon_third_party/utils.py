@@ -270,13 +270,27 @@ def get_addon_settings():
     return copy.deepcopy(_ThirdPartyCache.addon_settings.get_data())
 
 
+def _makedirs(path: str):
+    """Create directory if not exists.
+
+    Do not execute 'os.makedirs' if directory already exists, to avoid
+    possible permissions issues.
+
+    Args:
+        path (str): Directory that should be created.
+
+    """
+    if not os.path.exists(path):
+        os.makedirs(path, exist_ok=True)
+
+
 def _get_download_dir(create_if_missing: bool = True) -> str:
     """Dir path where files are downloaded.
 
     DEPRECATED: Use relative path to addon resource dirs.
     """
     if create_if_missing:
-        os.makedirs(_DEPRECATED_DOWNLOAD_DIR, exist_ok=True)
+        _makedirs(_DEPRECATED_DOWNLOAD_DIR)
     return _DEPRECATED_DOWNLOAD_DIR
 
 
@@ -376,7 +390,7 @@ def _filter_file_info(name: str) -> List["ToolInfo"]:
 def _store_file_info(name: str, info: List["ToolInfo"]):
     filepath = _get_info_path(name)
     root, filename = os.path.split(filepath)
-    os.makedirs(root, exist_ok=True)
+    _makedirs(root)
     with open(filepath, "w") as stream:
         json.dump(info, stream)
 
@@ -763,7 +777,7 @@ def _download_file(
 
         # Store checksum so any future processes know that this was
         # downloaded and extracted
-        os.makedirs(dirpath, exist_ok=True)
+        _makedirs(dirpath)
         progress_info = {"state": "extracting"}
         with open(progress_path, "w") as stream:
             json.dump(progress_info, stream)
