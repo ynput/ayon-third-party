@@ -494,8 +494,10 @@ def get_downloaded_ffmpeg_root(
         server_info = _find_file_info("ffmpeg", server_files_info)
         path = None
         if server_info:
-            checksum = server_info["checksum"]
-            path = _get_resources_dir(f"ffmpeg_{checksum}")
+            platform_name = server_info["platform"]
+            # Use first 8 characters of checksum as directory name
+            checksum = server_info["checksum"][:8]
+            path = _get_resources_dir(f"ffmpeg_{platform_name}_{checksum}")
         _FFmpegArgs.downloaded_root = path
     return _FFmpegArgs.downloaded_root
 
