@@ -420,14 +420,6 @@ def _store_file_info(name: str, info: List["ToolInfo"]):
         json.dump(info, stream)
 
 
-def _get_downloaded_ffmpeg_info() -> List["ToolInfo"]:
-    return _filter_file_info("ffmpeg")
-
-
-def _store_downloaded_ffmpeg_info(ffmpeg_info: List["ToolInfo"]):
-    _store_file_info("ffmpeg", ffmpeg_info)
-
-
 def _get_downloaded_oiio_info() -> List["ToolInfo"]:
     return _filter_file_info("oiio")
 
@@ -487,21 +479,9 @@ def _get_downloaded_root(
         if existing_info["checksum"] != checksum:
             continue
 
-        # Look for deprecated 'root' key, still used by OIIO
-        root = existing_info.get("root")
+        root = existing_info["root"]
         if root and os.path.exists(root):
             return root
-
-        # Using new 'subdir' key
-        subdir = existing_info.get("subdir")
-        if subdir:
-            root = _get_resources_dir(subdir)
-            if os.path.exists(root):
-                return root
-
-    # Currently happens only for ffmpeg
-    if name == "ffmpeg":
-        return _get_resources_dir(f"ffmpeg_{checksum}")
     return None
 
 
@@ -509,11 +489,14 @@ def get_downloaded_ffmpeg_root(
     server_files_info: Optional[Dict[str, Any]] = None
 ) -> Optional[str]:
     if _FFmpegArgs.downloaded_root is NOT_SET:
-        _FFmpegArgs.downloaded_root = _get_downloaded_root(
-        "ffmpeg",
-            _get_downloaded_ffmpeg_info(),
-            server_files_info
-        )
+        if server_files_info is None:
+            server_files_info = get_server_files_info()
+        server_info = _find_file_info("ffmpeg", server_files_info)
+        path = None
+        if server_info:
+            checksum = server_info["checksum"]
+            path = _get_resources_dir(f"ffmpeg_{checksum}")
+        _FFmpegArgs.downloaded_root = path
     return _FFmpegArgs.downloaded_root
 
 
@@ -792,7 +775,15 @@ def _download_file(
         return False
 
     _makedirs(dirpath)
-    progress_info = {"state": "downloading", "progress_id": progress_id}
+    progress_info = {
+        "state": "downloading",
+        "progress_id": progress_id,
+        "checksum": checksum,
+        "checksum_algorithm": checksum_algorithm,
+        "dist_started": (
+            datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ),
+    }
     with open(progress_path, "w") as stream:
         json.dump(progress_info, stream)
 
@@ -838,6 +829,9 @@ def _download_file(
             return False
 
         progress_info["state"] = "done"
+        progress_info["dist_finished"] = (
+            datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        )
         with open(progress_path, "w") as stream:
             json.dump(progress_info, stream)
 
@@ -878,32 +872,6 @@ def download_ffmpeg(
     log.debug(f"Downloading ffmpeg into: '{dirpath}'")
     if not _download_file(file_info, dirpath, progress=progress):
         log.debug("Other processed already downloaded and extracted ffmpeg.")
-        _FFmpegArgs.download_needed = False
-        _FFmpegArgs.downloaded_root = NOT_SET
-        return
-
-    subdir = os.path.basename(dirpath)
-
-    ffmpeg_info = _get_downloaded_ffmpeg_info()
-    existing_item = next(
-        (
-            item
-            for item in ffmpeg_info
-            if item.get("subdir") == subdir
-        ),
-        None
-    )
-    if existing_item is None:
-        existing_item = {}
-        ffmpeg_info.append(existing_item)
-    existing_item.update({
-        "subdir": subdir,
-        "checksum": file_info["checksum"],
-        "checksum_algorithm": file_info["checksum_algorithm"],
-        "downloaded": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    })
-    _store_downloaded_ffmpeg_info(ffmpeg_info)
-    log.debug("Stored metadata about downloaded ffmpeg.")
 
     _FFmpegArgs.download_needed = False
     _FFmpegArgs.downloaded_root = NOT_SET
