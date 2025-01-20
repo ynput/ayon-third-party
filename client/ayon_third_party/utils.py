@@ -95,6 +95,7 @@ class _FFmpegArgs:
 
 class _ThirdPartyCache:
     addon_settings = CacheItem(lifetime=60)
+    server_files_info = None
 
 
 class ZipFileLongPaths(zipfile.ZipFile):
@@ -272,6 +273,29 @@ def get_addon_settings():
     return copy.deepcopy(_ThirdPartyCache.addon_settings.get_data())
 
 
+def _get_addon_endpoint() -> str:
+    return f"addons/{ADDON_NAME}/{__version__}"
+
+
+def get_server_files_info() -> List["ToolDownloadInfo"]:
+    """Receive zip file info from server.
+
+    Information must contain at least 'filename' and 'hash' with md5 zip
+    file hash.
+
+    Returns:
+        list[dict[str, str]]: Information about files on server.
+
+    """
+    # Cache server files info, they won't change
+    if _ThirdPartyCache.server_files_info is None:
+        endpoint = _get_addon_endpoint()
+        response = ayon_api.get(f"{endpoint}/files_info")
+        response.raise_for_status()
+        _ThirdPartyCache.server_files_info = response.data
+    return copy.deepcopy(_ThirdPartyCache.server_files_info)
+
+
 def _makedirs(path: str):
     """Create directory if not exists.
 
@@ -356,10 +380,6 @@ def validate_oiio_args(args: List[str]) -> bool:
     return _check_args_returncode(args + ["--help"])
 
 
-def _get_addon_endpoint() -> str:
-    return f"addons/{ADDON_NAME}/{__version__}"
-
-
 def _get_resources_dir(*args) -> str:
     # TODO use helper function from ayon-core for resources directory
     #   when implemented in ayon-core addon.
@@ -422,22 +442,6 @@ def _read_progress_file(progress_path: str):
             return json.loads(stream.read())
     except Exception:
         return {}
-
-
-def get_server_files_info() -> List["ToolDownloadInfo"]:
-    """Receive zip file info from server.
-
-    Information must contain at least 'filename' and 'hash' with md5 zip
-    file hash.
-
-    Returns:
-        list[dict[str, str]]: Information about files on server.
-
-    """
-    endpoint = _get_addon_endpoint()
-    response = ayon_api.get(f"{endpoint}/files_info")
-    response.raise_for_status()
-    return response.data
 
 
 def _find_file_info(
