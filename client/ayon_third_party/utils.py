@@ -37,9 +37,6 @@ if typing.TYPE_CHECKING:
 
     class ToolInfo(TypedDict):
         root: Optional[str]
-        # 'subdir' is replacement of 'root' to support shared paths
-        # - use relative subdir instead of explicit path
-        subdir: Optional[str]
         checksum: str
         checksum_algorithm: str
         downloaded: str
@@ -392,13 +389,9 @@ def _get_resources_dir(*args) -> str:
 
 
 def _get_info_path(name: str) -> str:
-    if name == "oiio":
-        # TODO use the same folder for metadata as default does
-        # - can be changed when oiio is updated
-        return get_launcher_storage_dir(
-            "addons", f"{ADDON_NAME}-{name}.json"
-        )
-    return _get_resources_dir(f"{name}.json")
+    return get_launcher_storage_dir(
+        "addons", f"{ADDON_NAME}-{name}.json"
+    )
 
 
 def _filter_file_info(name: str) -> List["ToolInfo"]:
