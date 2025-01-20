@@ -36,7 +36,7 @@ if typing.TYPE_CHECKING:
 
 
     class ToolInfo(TypedDict):
-        root: Optional[str]
+        root: str
         checksum: str
         checksum_algorithm: str
         downloaded: str
