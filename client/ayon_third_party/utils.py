@@ -22,6 +22,10 @@ try:
     from ayon_core.lib import get_launcher_storage_dir
 except ImportError:
     from ayon_core.lib import get_ayon_appdirs as get_launcher_storage_dir
+try:
+    from ayon_core.lib import get_addons_resources_dir
+except ImportError:
+    get_addons_resources_dir = None
 
 from .version import __version__
 from .constants import ADDON_NAME
@@ -378,8 +382,11 @@ def validate_oiio_args(args: List[str]) -> bool:
 
 
 def _get_resources_dir(*args) -> str:
-    # TODO use helper function from ayon-core for resources directory
-    #   when implemented in ayon-core addon.
+    # NOTE Helper function 'get_addons_resources_dir' is being added
+    #   to ayon-core 1.1.6 (or 1.2.0)
+    if get_addons_resources_dir is not None:
+        return get_addons_resources_dir(ADDON_NAME, *args)
+
     addons_resources_dir = os.getenv("AYON_ADDONS_RESOURCES_DIR")
     if addons_resources_dir:
         return os.path.join(addons_resources_dir, ADDON_NAME, *args)
