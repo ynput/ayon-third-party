@@ -1,8 +1,10 @@
+import sys
 import uuid
 import threading
 import traceback
 from functools import partial
 from typing import Optional, Callable
+from dataclasses import dataclass
 
 from qtpy import QtWidgets, QtCore
 
@@ -15,6 +17,11 @@ from .utils import (
     download_oiio,
 )
 
+@dataclass
+class ErrorInfo:
+    message: str
+    detail: Optional[str]
+
 
 class DownloadItem:
     def __init__(self, title: str, func: Callable):
@@ -24,7 +31,7 @@ class DownloadItem:
         self.title = title
         self.progress = progress
         self._thread = None
-        self._error = None
+        self._error: Optional[ErrorInfo] = None
 
     @property
     def id(self) -> str:
@@ -35,7 +42,7 @@ class DownloadItem:
         return self._error is not None
 
     @property
-    def error(self) -> Optional[str]:
+    def error(self) -> Optional[ErrorInfo]:
         return self._error
 
     @property
@@ -47,13 +54,26 @@ class DownloadItem:
     def _start(self):
         try:
             self._func()
+
         except PermissionError:
             traceback.print_exc()
-            self._error = "Missing permissions"
+            self._error = ErrorInfo(
+                "FAILED: Missing permissions",
+                "Failed to download or extract files because"
+                " of missing permissions on disk."
+                "\n\nPlease contact your administrator.",
+            )
 
         except Exception:
-            traceback.print_exc()
-            self._error = "Unknown error"
+            tb = "".join(traceback.format_exception(*sys.exc_info()))
+            # Print exception to console
+            print(tb)
+            self._error = ErrorInfo(
+                "FAILED: Unknown error",
+                "An unknown error occurred while downloading or extracting."
+                "\n\nPlease contact your administrator.\n\n"
+                f"{tb}"
+            )
 
     def download(self):
         if self._thread is None:
@@ -133,6 +153,9 @@ class DownloadController:
 
 
 class DownloadItemWidget(QtWidgets.QWidget):
+    # TODO use nicer progress bar instead of label
+    # TODO better error reporting on fail
+    # TODO add 'retry' button on fail
     def __init__(self, download_item: DownloadItem, parent: QtWidgets.QWidget):
         super().__init__(parent)
 
@@ -151,7 +174,10 @@ class DownloadItemWidget(QtWidgets.QWidget):
         if self._download_item.finished:
             progress_label = "Finished"
             if self._download_item.failed:
-                progress_label = self._download_item.error
+                error = self._download_item.error
+                progress_label = error.message
+                if error.detail:
+                    self._progress_label.setToolTip(error.detail)
 
             self._progress_label.setText(progress_label)
             return
