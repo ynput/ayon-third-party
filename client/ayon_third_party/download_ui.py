@@ -1,5 +1,6 @@
 import uuid
 import threading
+import traceback
 from functools import partial
 from typing import Optional, Callable
 
@@ -23,10 +24,19 @@ class DownloadItem:
         self.title = title
         self.progress = progress
         self._thread = None
+        self._error = None
 
     @property
     def id(self) -> str:
         return self._id
+
+    @property
+    def failed(self) -> bool:
+        return self._error is not None
+
+    @property
+    def error(self) -> Optional[str]:
+        return self._error
 
     @property
     def finished(self) -> bool:
@@ -34,9 +44,20 @@ class DownloadItem:
             return True
         return not self._thread.is_alive()
 
+    def _start(self):
+        try:
+            self._func()
+        except PermissionError:
+            traceback.print_exc()
+            self._error = "Missing permissions"
+
+        except Exception:
+            traceback.print_exc()
+            self._error = "Unknown error"
+
     def download(self):
         if self._thread is None:
-            self._thread = threading.Thread(target=self._func)
+            self._thread = threading.Thread(target=self._start)
             self._thread.start()
 
     def finish(self):
@@ -80,6 +101,13 @@ class DownloadController:
         return self._download_finished
 
     @property
+    def download_failed(self):
+        for item in self.download_items:
+            if item.failed:
+                return True
+        return False
+
+    @property
     def is_downloading(self) -> bool:
         if not self._download_started or self._download_finished:
             return False
@@ -121,7 +149,11 @@ class DownloadItemWidget(QtWidgets.QWidget):
 
     def update_progress(self):
         if self._download_item.finished:
-            self._progress_label.setText("Finished")
+            progress_label = "Finished"
+            if self._download_item.failed:
+                progress_label = self._download_item.error
+
+            self._progress_label.setText(progress_label)
             return
 
         progress = self._download_item.progress
@@ -200,7 +232,8 @@ class DownloadWindow(QtWidgets.QWidget):
     def _on_timer(self):
         if self._controller.download_finished:
             self._timer.stop()
-            self.finished.emit()
+            if not self._controller.download_failed:
+                self.finished.emit()
             return
 
         if not self._controller.download_started:
