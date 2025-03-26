@@ -55,9 +55,6 @@ if typing.TYPE_CHECKING:
 
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-_DEPRECATED_DOWNLOAD_DIR = os.path.join(
-    CURRENT_DIR, "downloads", platform.system().lower()
-)
 NOT_SET = type("NOT_SET", (), {"__bool__": lambda: False})()
 IMPLEMENTED_ARCHIVE_FORMATS = {
     ".zip", ".tar", ".tgz", ".tar.gz", ".tar.xz", ".tar.bz2"
@@ -311,16 +308,6 @@ def _makedirs(path: str):
         os.makedirs(path, exist_ok=True)
 
 
-def _get_download_dir(create_if_missing: bool = True) -> str:
-    """Dir path where files are downloaded.
-
-    DEPRECATED: Use relative path to addon resource dirs.
-    """
-    if create_if_missing:
-        _makedirs(_DEPRECATED_DOWNLOAD_DIR)
-    return _DEPRECATED_DOWNLOAD_DIR
-
-
 def _check_args_returncode(args: List[str]) -> bool:
     try:
         kwargs = {}
@@ -395,39 +382,6 @@ def _get_resources_dir(*args) -> str:
     )
 
 
-def _get_info_path(name: str) -> str:
-    return get_launcher_storage_dir(
-        "addons", f"{ADDON_NAME}-{name}.json"
-    )
-
-
-def _filter_file_info(name: str) -> List["ToolInfo"]:
-    filepath = _get_info_path(name)
-    try:
-        if os.path.exists(filepath):
-            with open(filepath, "r") as stream:
-                return json.load(stream)
-    except Exception:
-        print(f"Failed to load {name} info from {filepath}")
-    return []
-
-
-def _store_file_info(name: str, info: List["ToolInfo"]):
-    filepath = _get_info_path(name)
-    root, filename = os.path.split(filepath)
-    _makedirs(root)
-    with open(filepath, "w") as stream:
-        json.dump(info, stream)
-
-
-def _get_downloaded_oiio_info() -> List["ToolInfo"]:
-    return _filter_file_info("oiio")
-
-
-def _store_downloaded_oiio_info(oiio_info: List["ToolInfo"]):
-    _store_file_info("oiio", oiio_info)
-
-
 def _read_progress_file(progress_path: str):
     try:
         with open(progress_path, "r") as stream:
@@ -463,42 +417,28 @@ def _find_file_info(
     )
 
 
-def _get_downloaded_root(
-    name: str,
-    downloaded_info: List["ToolInfo"],
-    server_files_info: Optional[Dict[str, Any]],
-) -> Optional[str]:
+def _get_tool_resource_dir(
+    tool_name: str,
+    server_files_info=None,
+):
     if server_files_info is None:
         server_files_info = get_server_files_info()
-    server_info = _find_file_info(name, server_files_info)
+    server_info = _find_file_info(tool_name, server_files_info)
     if not server_info:
         return None
-
-    checksum = server_info["checksum"]
-    for existing_info in downloaded_info:
-        if existing_info["checksum"] != checksum:
-            continue
-
-        root = existing_info["root"]
-        if root and os.path.exists(root):
-            return root
-    return None
+    platform_name = server_info["platform"]
+    # Use first 8 characters of checksum as directory name
+    checksum = server_info["checksum"][:8]
+    return _get_resources_dir(f"{tool_name}_{platform_name}_{checksum}")
 
 
 def get_downloaded_ffmpeg_root(
     server_files_info: Optional[Dict[str, Any]] = None
 ) -> Optional[str]:
     if _FFmpegArgs.downloaded_root is NOT_SET:
-        if server_files_info is None:
-            server_files_info = get_server_files_info()
-        server_info = _find_file_info("ffmpeg", server_files_info)
-        path = None
-        if server_info:
-            platform_name = server_info["platform"]
-            # Use first 8 characters of checksum as directory name
-            checksum = server_info["checksum"][:8]
-            path = _get_resources_dir(f"ffmpeg_{platform_name}_{checksum}")
-        _FFmpegArgs.downloaded_root = path
+        _FFmpegArgs.downloaded_root = _get_tool_resource_dir(
+            "ffmpeg", server_files_info
+        )
     return _FFmpegArgs.downloaded_root
 
 
@@ -506,10 +446,8 @@ def get_downloaded_oiio_root(
     server_files_info: Optional[Dict[str, Any]] = None
 ) -> Optional[str]:
     if _OIIOArgs.downloaded_root is NOT_SET:
-        _OIIOArgs.downloaded_root = _get_downloaded_root(
-            "oiio",
-            _get_downloaded_oiio_info(),
-            server_files_info
+        _OIIOArgs.downloaded_root = _get_tool_resource_dir(
+            "oiio", server_files_info
         )
     return _OIIOArgs.downloaded_root
 
@@ -698,7 +636,13 @@ def is_oiio_download_needed(
     download_needed = False
     if oiio_settings["use_downloaded"]:
         oiio_root = get_downloaded_oiio_root()
-        download_needed = not bool(oiio_root)
+        progress_info = {}
+        if oiio_root:
+            progress_path = os.path.join(
+                oiio_root, DIST_PROGRESS_FILENAME
+            )
+            progress_info = _read_progress_file(progress_path)
+        download_needed = progress_info.get("state") != "done"
     _OIIOArgs.download_needed = download_needed
     return _OIIOArgs.download_needed
 
@@ -880,8 +824,6 @@ def download_ffmpeg(
 
 
 def download_oiio(progress: Optional[TransferProgress] = None):
-    dirpath = os.path.join(_get_download_dir(), "oiio")
-
     files_info = get_server_files_info()
     file_info = _find_file_info("oiio", files_info)
     if file_info is None:
@@ -889,34 +831,10 @@ def download_oiio(progress: Optional[TransferProgress] = None):
             "Couldn't find OpenImageIO source file for platform '{}'"
         ).format(platform.system()))
 
+    dirpath = get_downloaded_oiio_root()
     log.debug("Downloading OIIO into: '%s'", dirpath)
     if not _download_file(file_info, dirpath, progress=progress):
         log.debug("Other processed already downloaded and extracted OIIO.")
-        _OIIOArgs.download_needed = False
-        _OIIOArgs.downloaded_root = NOT_SET
-        return
-
-    oiio_info = _get_downloaded_oiio_info()
-    existing_item = next(
-        (
-            item
-            for item in oiio_info
-            if item["root"] == dirpath
-        ),
-        None
-    )
-
-    if existing_item is None:
-        existing_item = {}
-        oiio_info.append(existing_item)
-    existing_item.update({
-        "root": dirpath,
-        "checksum": file_info["checksum"],
-        "checksum_algorithm": file_info["checksum_algorithm"],
-        "downloaded": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    })
-    _store_downloaded_oiio_info(oiio_info)
-    log.debug("Stored metadata about downloaded OIIO.")
 
     _OIIOArgs.download_needed = False
     _OIIOArgs.downloaded_root = NOT_SET

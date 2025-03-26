@@ -1,7 +1,10 @@
+import sys
 import uuid
 import threading
+import traceback
 from functools import partial
 from typing import Optional, Callable
+from dataclasses import dataclass
 
 from qtpy import QtWidgets, QtCore
 
@@ -14,6 +17,11 @@ from .utils import (
     download_oiio,
 )
 
+@dataclass
+class ErrorInfo:
+    message: str
+    detail: Optional[str]
+
 
 class DownloadItem:
     def __init__(self, title: str, func: Callable):
@@ -23,10 +31,19 @@ class DownloadItem:
         self.title = title
         self.progress = progress
         self._thread = None
+        self._error: Optional[ErrorInfo] = None
 
     @property
     def id(self) -> str:
         return self._id
+
+    @property
+    def failed(self) -> bool:
+        return self._error is not None
+
+    @property
+    def error(self) -> Optional[ErrorInfo]:
+        return self._error
 
     @property
     def finished(self) -> bool:
@@ -34,9 +51,33 @@ class DownloadItem:
             return True
         return not self._thread.is_alive()
 
+    def _start(self):
+        try:
+            self._func()
+
+        except PermissionError:
+            traceback.print_exc()
+            self._error = ErrorInfo(
+                "FAILED: Missing permissions",
+                "Failed to download or extract files because"
+                " of missing permissions on disk."
+                "\n\nPlease contact your administrator.",
+            )
+
+        except Exception:
+            tb = "".join(traceback.format_exception(*sys.exc_info()))
+            # Print exception to console
+            print(tb)
+            self._error = ErrorInfo(
+                "FAILED: Unknown error",
+                "An unknown error occurred while downloading or extracting."
+                "\n\nPlease contact your administrator.\n\n"
+                f"{tb}"
+            )
+
     def download(self):
         if self._thread is None:
-            self._thread = threading.Thread(target=self._func)
+            self._thread = threading.Thread(target=self._start)
             self._thread.start()
 
     def finish(self):
@@ -80,6 +121,13 @@ class DownloadController:
         return self._download_finished
 
     @property
+    def download_failed(self):
+        for item in self.download_items:
+            if item.failed:
+                return True
+        return False
+
+    @property
     def is_downloading(self) -> bool:
         if not self._download_started or self._download_finished:
             return False
@@ -105,6 +153,9 @@ class DownloadController:
 
 
 class DownloadItemWidget(QtWidgets.QWidget):
+    # TODO use nicer progress bar instead of label
+    # TODO better error reporting on fail
+    # TODO add 'retry' button on fail
     def __init__(self, download_item: DownloadItem, parent: QtWidgets.QWidget):
         super().__init__(parent)
 
@@ -121,7 +172,14 @@ class DownloadItemWidget(QtWidgets.QWidget):
 
     def update_progress(self):
         if self._download_item.finished:
-            self._progress_label.setText("Finished")
+            progress_label = "Finished"
+            if self._download_item.failed:
+                error = self._download_item.error
+                progress_label = error.message
+                if error.detail:
+                    self._progress_label.setToolTip(error.detail)
+
+            self._progress_label.setText(progress_label)
             return
 
         progress = self._download_item.progress
@@ -200,7 +258,8 @@ class DownloadWindow(QtWidgets.QWidget):
     def _on_timer(self):
         if self._controller.download_finished:
             self._timer.stop()
-            self.finished.emit()
+            if not self._controller.download_failed:
+                self.finished.emit()
             return
 
         if not self._controller.download_started:
