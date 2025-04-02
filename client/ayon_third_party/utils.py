@@ -700,7 +700,14 @@ def _wait_for_other_process(progress_path: str, progress_id: str):
                 f"Waited for treshold time ({EXTRACT_WAIT_TRESHOLD_TIME}s)."
                 f" Extracting downloaded content."
             )
-            shutil.rmtree(dirpath)
+            try:
+                shutil.rmtree(dirpath)
+            except PermissionError as exc:
+                log.warning(
+                    "Failed to remove target directory. Other process"
+                    " might still be extracting content."
+                )
+                raise exc
             break
         time.sleep(0.1)
     return False
