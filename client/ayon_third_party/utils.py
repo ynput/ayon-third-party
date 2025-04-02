@@ -688,6 +688,7 @@ def _wait_for_other_process(progress_path: str, progress_id: str):
         if current_state != state:
             started = time.time()
             threshold_time = None
+            state = current_state
 
         if threshold_time is None:
             threshold_time = EXTRACT_WAIT_TRESHOLD_TIME
