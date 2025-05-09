@@ -70,8 +70,8 @@ OIIO_SOURCES = {
         "checksum_algorithm": "sha256",
     },
     "linux": {
-        "url": f"{DISTRIBUTE_SOURCE_URL}/openimageio-v3.0.5.0-rocky8.tar.gz",
-        "checksum": "60D8A3F61E1C35C09153006CA46E546C3C083BD6A3AF5E3D37A6F8E14427081C",
+        "url": f"{DISTRIBUTE_SOURCE_URL}/openimageio-v3.0.6.1-rocky8.tar.gz",
+        "checksum": "BC8B24C5D072EB59711590B81AE22DE033E59FCD82B09196BBFCB29086E742E9",
         "checksum_algorithm": "sha256",
     }
 }
