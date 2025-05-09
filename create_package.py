@@ -65,17 +65,13 @@ FFMPEG_SOURCES = {
 }
 OIIO_SOURCES = {
     "windows": {
-        "url": f"{DISTRIBUTE_SOURCE_URL}/oiio_tools-2.3.10-windows.zip",
-        "checksum": (
-            "b9950f5d2fa3720b52b8be55bacf5f56d33f9e029d38ee86534995f3d8d253d2"
-        ),
+        "url": f"{DISTRIBUTE_SOURCE_URL}/oiio_tools-3.0.6.1-windows.zip",
+        "checksum": "6B35A08B8A50323D78389901673C6B2B9EE25950C22949F0334E3EC6EC23F5EF",
         "checksum_algorithm": "sha256",
     },
     "linux": {
-        "url": f"{DISTRIBUTE_SOURCE_URL}/oiio_tools-2.2.20-linux-centos7.tgz",
-        "checksum": (
-            "3894dec7e4e521463891a869586850e8605f5fd604858b674c87323bf33e273d"
-        ),
+        "url": f"{DISTRIBUTE_SOURCE_URL}/openimageio-v3.0.5.0-rocky8.tar.gz",
+        "checksum": "60D8A3F61E1C35C09153006CA46E546C3C083BD6A3AF5E3D37A6F8E14427081C",
         "checksum_algorithm": "sha256",
     }
 }
