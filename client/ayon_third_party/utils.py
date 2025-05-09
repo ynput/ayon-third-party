@@ -2,23 +2,70 @@ import os
 import json
 import platform
 import datetime
+import shutil
 import subprocess
 import copy
+import hashlib
+import zipfile
+import tarfile
+import typing
+import tempfile
+import time
+import uuid
+from typing import Optional, Tuple, List, Dict, Any
 
 import ayon_api
+from ayon_api import TransferProgress
 
-from ayon_common import (
-    get_ayon_appdirs,
-    validate_file_checksum,
-    extract_archive_file,
-)
+from ayon_core.lib import Logger, CacheItem
+try:
+    from ayon_core.lib import get_launcher_storage_dir
+except ImportError:
+    from ayon_core.lib import get_ayon_appdirs as get_launcher_storage_dir
+try:
+    from ayon_core.lib import get_addons_resources_dir
+except ImportError:
+    get_addons_resources_dir = None
 
 from .version import __version__
 from .constants import ADDON_NAME
 
+if typing.TYPE_CHECKING:
+    from typing import Literal, TypedDict
+
+    OIIOToolName = Literal[
+        "oiiotool", "maketx", "iv", "iinfo", "igrep", "idiff", "iconvert"
+    ]
+    FFmpegToolname = Literal["ffmpeg", "ffprobe"]
+
+
+    class ToolInfo(TypedDict):
+        root: str
+        checksum: str
+        checksum_algorithm: str
+        downloaded: str
+
+
+    class ToolDownloadInfo(TypedDict):
+        name: Literal["ffmpeg", "oiio"]
+        filename: str
+        checksum: str
+        checksum_algorithm: str
+        platform: Literal["windows", "linux", "darwin"]
+
+
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-DOWNLOAD_DIR = os.path.join(CURRENT_DIR, "downloads")
 NOT_SET = type("NOT_SET", (), {"__bool__": lambda: False})()
+IMPLEMENTED_ARCHIVE_FORMATS = {
+    ".zip", ".tar", ".tgz", ".tar.gz", ".tar.xz", ".tar.bz2"
+}
+# Filename where is stored progress of extraction
+DIST_PROGRESS_FILENAME = "dist_progress.json"
+# How long to wait for other process to download/extract content
+DOWNLOAD_WAIT_TRESHOLD_TIME = 20
+EXTRACT_WAIT_TRESHOLD_TIME = 20
+
+log = Logger.get_logger(__name__)
 
 
 class _OIIOArgs:
@@ -45,26 +92,223 @@ class _FFmpegArgs:
 
 
 class _ThirdPartyCache:
-    addon_settings = NOT_SET
+    addon_settings = CacheItem(lifetime=60)
+    server_files_info = None
+
+
+class ZipFileLongPaths(zipfile.ZipFile):
+    """Allows longer paths in zip files.
+
+    Regular DOS paths are limited to MAX_PATH (260) characters, including
+    the string's terminating NUL character.
+    That limit can be exceeded by using an extended-length path that
+    starts with the '\\?\' prefix.
+    """
+    _is_windows = platform.system().lower() == "windows"
+
+    def _extract_member(self, member, tpath, pwd):
+        if self._is_windows:
+            tpath = os.path.abspath(tpath)
+            if tpath.startswith("\\\\"):
+                tpath = "\\\\?\\UNC\\" + tpath[2:]
+            else:
+                tpath = "\\\\?\\" + tpath
+
+        return super()._extract_member(member, tpath, pwd)
+
+
+def calculate_file_checksum(
+    filepath: str,
+    checksum_algorithm: str,
+    chunk_size: int = 10000,
+) -> str:
+    """Calculate file checksum for given algorithm.
+
+    Args:
+        filepath (str): Path to a file.
+        checksum_algorithm (str): Algorithm to use. ('md5', 'sha1', 'sha256')
+        chunk_size (int): Chunk size to read file.
+            Defaults to 10000.
+
+    Returns:
+        str: Calculated checksum.
+
+    Raises:
+        ValueError: File not found or unknown checksum algorithm.
+
+    """
+    if not filepath:
+        raise ValueError("Filepath is empty.")
+
+    if not os.path.exists(filepath):
+        raise ValueError(f"{filepath} doesn't exist.")
+
+    if not os.path.isfile(filepath):
+        raise ValueError(f"{filepath} is not a file.")
+
+    func = getattr(hashlib, checksum_algorithm, None)
+    if func is None:
+        raise ValueError(
+            f"Unknown checksum algorithm '{checksum_algorithm}'"
+        )
+
+    hash_obj = func()
+    with open(filepath, "rb") as f:
+        for chunk in iter(lambda: f.read(chunk_size), b""):
+            hash_obj.update(chunk)
+    return hash_obj.hexdigest()
+
+
+def validate_file_checksum(
+    filepath: str,
+    checksum: str,
+    checksum_algorithm: str,
+) -> bool:
+    """Validate file checksum.
+
+    Args:
+        filepath (str): Path to file.
+        checksum (str): Hash of file.
+        checksum_algorithm (str): Type of checksum.
+
+    Returns:
+        bool: Hash is valid/invalid.
+
+    Raises:
+        ValueError: File not found or unknown checksum algorithm.
+
+    """
+    return checksum == calculate_file_checksum(filepath, checksum_algorithm)
+
+
+def get_archive_ext_and_type(
+    archive_file: str
+) -> Tuple[Optional[str], Optional[str]]:
+    """Get archive extension and type.
+
+    Args:
+        archive_file (str): Path to archive file.
+
+    Returns:
+        Tuple[str, str]: Archive extension and type.
+
+    """
+    tmp_name = archive_file.lower()
+    if tmp_name.endswith(".zip"):
+        return ".zip", "zip"
+
+    for ext in (
+        ".tar",
+        ".tgz",
+        ".tar.gz",
+        ".tar.xz",
+        ".tar.bz2",
+    ):
+        if tmp_name.endswith(ext):
+            return ext, "tar"
+
+    return None, None
+
+
+def extract_archive_file(
+    archive_file: str,
+    dst_folder: Optional[str] = None,
+):
+    """Extract archived file to a directory.
+
+    Args:
+        archive_file (str): Path to a archive file.
+        dst_folder (Optional[str]): Directory where content will be extracted.
+            By default, same folder where archive file is.
+
+    """
+    if not dst_folder:
+        dst_folder = os.path.dirname(archive_file)
+
+    archive_ext, archive_type = get_archive_ext_and_type(archive_file)
+
+    print("Extracting {} -> {}".format(archive_file, dst_folder))
+    if archive_type is None:
+        _, ext = os.path.splitext(archive_file)
+        raise ValueError((
+            f"Invalid file extension \"{ext}\"."
+            f" Expected {', '.join(IMPLEMENTED_ARCHIVE_FORMATS)}"
+        ))
+
+    if archive_type == "zip":
+        zip_file = ZipFileLongPaths(archive_file)
+        zip_file.extractall(dst_folder)
+        zip_file.close()
+
+    elif archive_type == "tar":
+        if archive_ext == ".tar":
+            tar_type = "r:"
+        elif archive_ext.endswith(".xz"):
+            tar_type = "r:xz"
+        elif archive_ext.endswith(".gz"):
+            tar_type = "r:gz"
+        elif archive_ext.endswith(".bz2"):
+            tar_type = "r:bz2"
+        else:
+            tar_type = "r:*"
+
+        try:
+            tar_file = tarfile.open(archive_file, tar_type)
+        except tarfile.ReadError:
+            raise ValueError("corrupted archive")
+
+        tar_file.extractall(dst_folder)
+        tar_file.close()
 
 
 def get_addon_settings():
-    if _ThirdPartyCache.addon_settings is NOT_SET:
-        _ThirdPartyCache.addon_settings = ayon_api.get_addon_settings(
-            ADDON_NAME, __version__
+    if not _ThirdPartyCache.addon_settings.is_valid:
+        _ThirdPartyCache.addon_settings.update_data(
+            ayon_api.get_addon_settings(
+                ADDON_NAME, __version__
+            )
         )
-    return copy.deepcopy(_ThirdPartyCache.addon_settings)
+    return copy.deepcopy(_ThirdPartyCache.addon_settings.get_data())
 
 
-def get_download_dir(create_if_missing=True):
-    """Dir path where files are downloaded."""
-
-    if create_if_missing and not os.path.exists(DOWNLOAD_DIR):
-        os.makedirs(DOWNLOAD_DIR)
-    return DOWNLOAD_DIR
+def _get_addon_endpoint() -> str:
+    return f"addons/{ADDON_NAME}/{__version__}"
 
 
-def _check_args_returncode(args):
+def get_server_files_info() -> List["ToolDownloadInfo"]:
+    """Receive zip file info from server.
+
+    Information must contain at least 'filename' and 'hash' with md5 zip
+    file hash.
+
+    Returns:
+        list[dict[str, str]]: Information about files on server.
+
+    """
+    # Cache server files info, they won't change
+    if _ThirdPartyCache.server_files_info is None:
+        endpoint = _get_addon_endpoint()
+        response = ayon_api.get(f"{endpoint}/files_info")
+        response.raise_for_status()
+        _ThirdPartyCache.server_files_info = response.data
+    return copy.deepcopy(_ThirdPartyCache.server_files_info)
+
+
+def _makedirs(path: str):
+    """Create directory if not exists.
+
+    Do not execute 'os.makedirs' if directory already exists, to avoid
+    possible permissions issues.
+
+    Args:
+        path (str): Directory that should be created.
+
+    """
+    if not os.path.exists(path):
+        os.makedirs(path, exist_ok=True)
+
+
+def _check_args_returncode(args: List[str]) -> bool:
     try:
         kwargs = {}
         if platform.system().lower() == "windows":
@@ -94,7 +338,7 @@ def _check_args_returncode(args):
     return proc.returncode == 0
 
 
-def validate_ffmpeg_args(args):
+def validate_ffmpeg_args(args: List[str]) -> bool:
     """Validate ffmpeg arguments.
 
     Args:
@@ -102,14 +346,14 @@ def validate_ffmpeg_args(args):
 
     Returns:
         bool: True if arguments are valid.
-    """
 
+    """
     if not args:
         return False
     return _check_args_returncode(args + ["-version"])
 
 
-def validate_oiio_args(args):
+def validate_oiio_args(args: List[str]) -> bool:
     """Validate oiio arguments.
 
     Args:
@@ -117,88 +361,48 @@ def validate_oiio_args(args):
 
     Returns:
         bool: True if arguments are valid.
-    """
 
+    """
     if not args:
         return False
     return _check_args_returncode(args + ["--help"])
 
 
-def _get_addon_endpoint():
-    return "addons/{}/{}".format(ADDON_NAME, __version__)
+def _get_resources_dir(*args) -> str:
+    # NOTE Helper function 'get_addons_resources_dir' is being added
+    #   to ayon-core 1.1.6 (or 1.2.0)
+    if get_addons_resources_dir is not None:
+        return get_addons_resources_dir(ADDON_NAME, *args)
+
+    addons_resources_dir = os.getenv("AYON_ADDONS_RESOURCES_DIR")
+    if addons_resources_dir:
+        return os.path.join(addons_resources_dir, ADDON_NAME, *args)
+    return get_launcher_storage_dir(
+        "addons_resources", ADDON_NAME, *args
+    )
 
 
-def _get_info_path(name):
-    return get_ayon_appdirs(
-        "addons", "{}-{}.json".format(ADDON_NAME, name))
-
-
-def filter_file_info(name):
-    filepath = _get_info_path(name)
+def _read_progress_file(progress_path: str):
     try:
-        if os.path.exists(filepath):
-            with open(filepath, "r") as stream:
-                return json.load(stream)
+        with open(progress_path, "r") as stream:
+            return json.loads(stream.read())
     except Exception:
-        print("Failed to load {} info from {}".format(
-            name, filepath
-        ))
-    return []
+        return {}
 
 
-def store_file_info(name, info):
-    filepath = _get_info_path(name)
-    root, filename = os.path.split(filepath)
-    if not os.path.exists(root):
-        os.makedirs(root)
-    with open(filepath, "w") as stream:
-        json.dump(info, stream)
-
-
-def get_downloaded_ffmpeg_info():
-    return filter_file_info("ffmpeg")
-
-
-def store_downloaded_ffmpeg_info(ffmpeg_info):
-    store_file_info("ffmpeg", ffmpeg_info)
-
-
-def get_downloaded_oiio_info():
-    return filter_file_info("oiio")
-
-
-def store_downloaded_oiio_info(oiio_info):
-    store_file_info("oiio", oiio_info)
-
-
-def get_server_files_info():
-    """Receive zip file info from server.
-
-    Information must contain at least 'filename' and 'hash' with md5 zip
-    file hash.
-
-    Returns:
-        list[dict[str, str]]: Information about files on server.
-    """
-
-    response = ayon_api.get("{}/files_info".format(
-        _get_addon_endpoint()
-    ))
-    response.raise_for_status()
-    return response.data
-
-
-def _find_file_info(name, files_info):
+def _find_file_info(
+    name: str, files_info: List["ToolDownloadInfo"]
+) -> Optional["ToolDownloadInfo"]:
     """Find file info by name.
 
     Args:
         name (str): Name of file to find.
-        files_info (list[dict[str, str]]): List of file info dicts.
+        files_info (List[ToolDownloadInfo]): List of file info dicts.
 
     Returns:
-        Union[dict[str, str], None]: File info data.
-    """
+        Optional[ToolDownloadInfo]: File info data.
 
+    """
     platform_name = platform.system().lower()
     return next(
         (
@@ -213,47 +417,50 @@ def _find_file_info(name, files_info):
     )
 
 
-def get_downloaded_ffmpeg_root():
-    if _FFmpegArgs.downloaded_root is not NOT_SET:
-        return _FFmpegArgs.downloaded_root
+def _get_tool_resource_dir(
+    tool_name: str,
+    server_files_info=None,
+):
+    if server_files_info is None:
+        server_files_info = get_server_files_info()
+    server_info = _find_file_info(tool_name, server_files_info)
+    if not server_info:
+        return None
+    platform_name = server_info["platform"]
+    # Use first 8 characters of checksum as directory name
+    checksum = server_info["checksum"][:8]
+    return _get_resources_dir(f"{tool_name}_{platform_name}_{checksum}")
 
-    server_ffmpeg_info = _find_file_info("ffmpeg", get_server_files_info())
-    root = None
-    for existing_info in get_downloaded_ffmpeg_info():
-        if existing_info["checksum"] != server_ffmpeg_info["checksum"]:
-            continue
-        found_root = existing_info["root"]
-        if os.path.exists(found_root):
-            root = found_root
-            break
 
-    _FFmpegArgs.downloaded_root = root
+def get_downloaded_ffmpeg_root(
+    server_files_info: Optional[Dict[str, Any]] = None
+) -> Optional[str]:
+    if _FFmpegArgs.downloaded_root is NOT_SET:
+        _FFmpegArgs.downloaded_root = _get_tool_resource_dir(
+            "ffmpeg", server_files_info
+        )
     return _FFmpegArgs.downloaded_root
 
 
-def get_downloaded_oiio_root():
-    if _OIIOArgs.downloaded_root is not NOT_SET:
-        return _OIIOArgs.downloaded_root
-
-    server_oiio_info = _find_file_info("oiio", get_server_files_info())
-    root = None
-    for existing_info in get_downloaded_oiio_info():
-        if existing_info["checksum"] != server_oiio_info["checksum"]:
-            continue
-        found_root = existing_info["root"]
-        if os.path.exists(found_root):
-            root = found_root
-            break
-    _OIIOArgs.downloaded_root = root
+def get_downloaded_oiio_root(
+    server_files_info: Optional[Dict[str, Any]] = None
+) -> Optional[str]:
+    if _OIIOArgs.downloaded_root is NOT_SET:
+        _OIIOArgs.downloaded_root = _get_tool_resource_dir(
+            "oiio", server_files_info
+        )
     return _OIIOArgs.downloaded_root
 
 
-def _fill_ffmpeg_tool_args(tool_name, addon_settings=None):
+def _fill_ffmpeg_tool_args(
+    tool_name: "FFmpegToolname",
+    addon_settings: Optional[Dict[str, Any]] = None,
+) -> Optional[List[str]]:
     if tool_name not in _FFmpegArgs.tools:
-        raise ValueError("Invalid tool name '{}'. Expected {}".format(
-            tool_name,
-            ", ".join(["'{}'".format(t) for t in _FFmpegArgs.tools])
-        ))
+        joined_tools = ", ".join([f"'{t}'" for t in _FFmpegArgs.tools])
+        raise ValueError(
+            f"Invalid tool name '{tool_name}'. Expected {joined_tools}"
+        )
 
     if addon_settings is None:
         addon_settings = get_addon_settings()
@@ -266,7 +473,7 @@ def _fill_ffmpeg_tool_args(tool_name, addon_settings=None):
         path_parts = [get_downloaded_ffmpeg_root()]
         if platform_name == "windows":
             path_parts.append("bin")
-            tool_name = "{}.exe".format(tool_name)
+            tool_name = f"{tool_name}.exe"
         path_parts.append(tool_name)
 
         args = [
@@ -311,12 +518,15 @@ def _fill_ffmpeg_tool_args(tool_name, addon_settings=None):
     return final_args
 
 
-def _fill_oiio_tool_args(tool_name, addon_settings=None):
+def _fill_oiio_tool_args(
+    tool_name: "OIIOToolName",
+    addon_settings: Optional[Dict[str, Any]] = None,
+) -> Optional[List[str]]:
     if tool_name not in _OIIOArgs.tools:
-        raise ValueError("Invalid tool name '{}'. Expected {}".format(
-            tool_name,
-            ", ".join(["'{}'".format(t) for t in _OIIOArgs.tools])
-        ))
+        joined_tools = ", ".join([f"'{t}'" for t in _OIIOArgs.tools])
+        raise ValueError(
+            f"Invalid tool name '{tool_name}'. Expected {joined_tools}"
+        )
 
     if addon_settings is None:
         addon_settings = get_addon_settings()
@@ -331,7 +541,7 @@ def _fill_oiio_tool_args(tool_name, addon_settings=None):
         if platform_name == "linux":
             path_parts.append("bin")
         elif platform_name == "windows":
-            tool_name = "{}.exe".format(tool_name)
+            tool_name = f"{tool_name}.exe"
         path_parts.append(tool_name)
 
         args = [
@@ -360,7 +570,7 @@ def _fill_oiio_tool_args(tool_name, addon_settings=None):
         try:
             root = root.format(**format_data)
         except (ValueError, KeyError):
-            print("Failed to format root '{}'".format(root))
+            print(f"Failed to format root '{root}'")
 
         if os.path.exists(root):
             filtered_roots.append(root)
@@ -376,13 +586,15 @@ def _fill_oiio_tool_args(tool_name, addon_settings=None):
     return final_args
 
 
-def is_ffmpeg_download_needed(addon_settings=None):
+def is_ffmpeg_download_needed(
+    addon_settings: Optional[Dict[str, Any]] = None
+) -> bool:
     """Check if is download needed.
 
     Returns:
         bool: Should be config downloaded.
-    """
 
+    """
     if _FFmpegArgs.download_needed is not None:
         return _FFmpegArgs.download_needed
 
@@ -393,19 +605,27 @@ def is_ffmpeg_download_needed(addon_settings=None):
     if ffmpeg_settings["use_downloaded"]:
         # Check what is required by server
         ffmpeg_root = get_downloaded_ffmpeg_root()
-        download_needed = not bool(ffmpeg_root)
+        progress_info = {}
+        if ffmpeg_root:
+            progress_path = os.path.join(
+                ffmpeg_root, DIST_PROGRESS_FILENAME
+            )
+            progress_info = _read_progress_file(progress_path)
+        download_needed = progress_info.get("state") != "done"
 
     _FFmpegArgs.download_needed = download_needed
     return _FFmpegArgs.download_needed
 
 
-def is_oiio_download_needed(addon_settings=None):
+def is_oiio_download_needed(
+    addon_settings: Optional[Dict[str, Any]] = None
+) -> bool:
     """Check if is download needed.
 
     Returns:
         bool: Should be config downloaded.
-    """
 
+    """
     if _OIIOArgs.download_needed is not None:
         return _OIIOArgs.download_needed
 
@@ -416,38 +636,174 @@ def is_oiio_download_needed(addon_settings=None):
     download_needed = False
     if oiio_settings["use_downloaded"]:
         oiio_root = get_downloaded_oiio_root()
-        download_needed = not bool(oiio_root)
+        progress_info = {}
+        if oiio_root:
+            progress_path = os.path.join(
+                oiio_root, DIST_PROGRESS_FILENAME
+            )
+            progress_info = _read_progress_file(progress_path)
+        download_needed = progress_info.get("state") != "done"
     _OIIOArgs.download_needed = download_needed
     return _OIIOArgs.download_needed
 
 
-def _download_file(file_info, dirpath, progress=None):
+def _wait_for_other_process(progress_path: str, progress_id: str):
+    dirpath = os.path.dirname(progress_path)
+    started = time.time()
+    progress_existed = False
+    threshold_time = None
+    state = None
+    while True:
+        if not os.path.exists(progress_path):
+            if progress_existed:
+                log.debug(
+                    "Other processed didn't finish download or extraction,"
+                    " trying to do so."
+                )
+            break
+
+        progress_info = _read_progress_file(progress_path)
+        if progress_info.get("progress_id") == progress_id:
+            return False
+
+        current_state = progress_info.get("state")
+
+        if not progress_existed:
+            log.debug(
+                "Other process already created progress file"
+                " in target directory. Waiting for finishing it."
+            )
+
+        progress_existed = True
+        if current_state is None:
+            log.warning(
+                "Other process did not store 'state' to progress file."
+            )
+            return False
+
+        if current_state == "done":
+            log.debug("Other process finished extraction.")
+            return True
+
+        if current_state != state:
+            started = time.time()
+            threshold_time = None
+            state = current_state
+
+        if threshold_time is None:
+            threshold_time = EXTRACT_WAIT_TRESHOLD_TIME
+            if current_state == "downloading":
+                threshold_time = DOWNLOAD_WAIT_TRESHOLD_TIME
+
+        if (time.time() - started) > threshold_time:
+            log.debug(
+                f"Waited for treshold time ({EXTRACT_WAIT_TRESHOLD_TIME}s)."
+                f" Extracting downloaded content."
+            )
+            try:
+                shutil.rmtree(dirpath)
+            except PermissionError as exc:
+                log.warning(
+                    "Failed to remove target directory. Other process"
+                    " might still be extracting content."
+                )
+                raise exc
+            break
+        time.sleep(0.1)
+    return False
+
+
+def _download_file(
+    file_info: "ToolDownloadInfo",
+    dirpath: str,
+    progress: Optional[TransferProgress] = None,
+) -> bool:
     filename = file_info["filename"]
     checksum = file_info["checksum"]
     checksum_algorithm = file_info["checksum_algorithm"]
 
-    zip_filepath = ayon_api.download_addon_private_file(
-        ADDON_NAME,
-        __version__,
-        filename,
-        dirpath,
-        progress=progress
-    )
+    progress_path = os.path.join(dirpath, DIST_PROGRESS_FILENAME)
+    progress_id = uuid.uuid4().hex
+    already_done = _wait_for_other_process(progress_path, progress_id)
+    if already_done:
+        return False
 
+    _makedirs(dirpath)
+    progress_info = {
+        "state": "downloading",
+        "progress_id": progress_id,
+        "checksum": checksum,
+        "checksum_algorithm": checksum_algorithm,
+        "dist_started": (
+            datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ),
+    }
+    with open(progress_path, "w") as stream:
+        json.dump(progress_info, stream)
+
+    tmpdir = tempfile.mkdtemp(prefix=ADDON_NAME)
+    finished = False
     try:
+        archive_filepath = ayon_api.download_addon_private_file(
+            ADDON_NAME,
+            __version__,
+            filename,
+            tmpdir,
+            progress=progress
+        )
+
         if not validate_file_checksum(
-            zip_filepath, checksum, checksum_algorithm
+            archive_filepath, checksum, checksum_algorithm
         ):
             raise ValueError(
                 "Downloaded file hash does not match expected hash"
             )
-        extract_archive_file(zip_filepath, dirpath)
+
+        # Find out if something else already downloaded and extracted
+        # NOTE This is primitive validation. We might also want to not start
+        #   downloading at first place? - That would require to store download
+        #   progress somewhere to avoid stale download.
+        already_done = _wait_for_other_process(progress_path, progress_id)
+        if already_done:
+            return False
+
+        # Store progress so any other processes know that this was
+        #   downloaded
+        _makedirs(dirpath)
+        progress_info["state"] = "extracting"
+        with open(progress_path, "w") as stream:
+            json.dump(progress_info, stream)
+
+        log.debug(f"Extracting '{archive_filepath}' to '{dirpath}'.")
+        extract_archive_file(archive_filepath, dirpath)
+
+        finished = True
+        current_progress_info = _read_progress_file(progress_path)
+        if current_progress_info.get("progress_id") != progress_id:
+            return False
+
+        progress_info["state"] = "done"
+        progress_info["dist_finished"] = (
+            datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        )
+        with open(progress_path, "w") as stream:
+            json.dump(progress_info, stream)
 
     finally:
-        os.remove(zip_filepath)
+        if os.path.exists(tmpdir):
+            shutil.rmtree(tmpdir)
+
+        if not finished:
+            progress_info = _read_progress_file(progress_path)
+            if progress_info.get("progress_id") == progress_id:
+                os.remove(progress_path)
+
+    return True
 
 
-def download_ffmpeg(progress=None):
+def download_ffmpeg(
+    progress: Optional[TransferProgress] = None,
+):
     """Download ffmpeg from server.
 
     Todos:
@@ -456,9 +812,8 @@ def download_ffmpeg(progress=None):
 
     Args:
         progress (ayon_api.TransferProgress): Keep track about download.
-    """
 
-    dirpath = os.path.join(get_download_dir(), "ffmpeg")
+    """
 
     files_info = get_server_files_info()
     file_info = _find_file_info("ffmpeg", files_info)
@@ -467,35 +822,16 @@ def download_ffmpeg(progress=None):
             "Couldn't find ffmpeg source file for platform '{}'"
         ).format(platform.system()))
 
-    _download_file(file_info, dirpath, progress=progress)
-
-    ffmpeg_info = get_downloaded_ffmpeg_info()
-    existing_item = next(
-        (
-            item
-            for item in ffmpeg_info
-            if item["root"] == dirpath
-        ),
-        None
-    )
-    if existing_item is None:
-        existing_item = {}
-        ffmpeg_info.append(existing_item)
-    existing_item.update({
-        "root": dirpath,
-        "checksum": file_info["checksum"],
-        "checksum_algorithm": file_info["checksum_algorithm"],
-        "downloaded": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    })
-    store_downloaded_ffmpeg_info(ffmpeg_info)
+    dirpath = get_downloaded_ffmpeg_root()
+    log.debug(f"Downloading ffmpeg into: '{dirpath}'")
+    if not _download_file(file_info, dirpath, progress=progress):
+        log.debug("Other processed already downloaded and extracted ffmpeg.")
 
     _FFmpegArgs.download_needed = False
     _FFmpegArgs.downloaded_root = NOT_SET
 
 
-def download_oiio(progress=None):
-    dirpath = os.path.join(get_download_dir(), "oiio")
-
+def download_oiio(progress: Optional[TransferProgress] = None):
     files_info = get_server_files_info()
     file_info = _find_file_info("oiio", files_info)
     if file_info is None:
@@ -503,63 +839,49 @@ def download_oiio(progress=None):
             "Couldn't find OpenImageIO source file for platform '{}'"
         ).format(platform.system()))
 
-    _download_file(file_info, dirpath, progress=progress)
-
-    oiio_info = get_downloaded_oiio_info()
-    existing_item = next(
-        (
-            item
-            for item in oiio_info
-            if item["root"] == dirpath
-        ),
-        None
-    )
-
-    if existing_item is None:
-        existing_item = {}
-        oiio_info.append(existing_item)
-    existing_item.update({
-        "root": dirpath,
-        "checksum": file_info["checksum"],
-        "checksum_algorithm": file_info["checksum_algorithm"],
-        "downloaded": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    })
-    store_downloaded_oiio_info(oiio_info)
+    dirpath = get_downloaded_oiio_root()
+    log.debug("Downloading OIIO into: '%s'", dirpath)
+    if not _download_file(file_info, dirpath, progress=progress):
+        log.debug("Other processed already downloaded and extracted OIIO.")
 
     _OIIOArgs.download_needed = False
     _OIIOArgs.downloaded_root = NOT_SET
 
 
-def get_ffmpeg_arguments(tool_name="ffmpeg"):
+def get_ffmpeg_arguments(
+    tool_name: "FFmpegToolname" = "ffmpeg"
+) -> Optional[List[str]]:
     """Get arguments to run one of ffmpeg tools.
 
     Args:
-        tool_name (Optional[Literal[ffmpeg, ffprobe]]): Name of
+        tool_name (FFmpegToolname): Name of
             tool for which arguments should be returned.
 
     Returns:
         list[str]: Path to OpenImageIO directory.
-    """
 
+    """
     args = _FFmpegArgs.tools.get(tool_name, NOT_SET)
     if args is NOT_SET:
         args = _fill_ffmpeg_tool_args(tool_name)
     return copy.deepcopy(args)
 
 
-def get_oiio_arguments(tool_name="oiiotool"):
+def get_oiio_arguments(
+    tool_name: "OIIOToolName" = "oiiotool"
+) -> Optional[List[str]]:
     """Get arguments to run one of OpenImageIO tools.
 
     Possible OIIO tools:
         oiiotool, maketx, iv, iinfo, igrep, idiff, iconvert
 
     Args:
-        tool_name (Optional[str]): Name of OIIO tool.
+        tool_name (OIIOToolName): Name of OIIO tool.
 
     Returns:
         str: Path to zip info file.
-    """
 
+    """
     args = _OIIOArgs.tools.get(tool_name, NOT_SET)
     if args is NOT_SET:
         args = _fill_oiio_tool_args(tool_name)
