@@ -73,6 +73,11 @@ OIIO_SOURCES = {
         "url": f"{DISTRIBUTE_SOURCE_URL}/openimageio-v3.0.6.1-rocky8.tar.gz",
         "checksum": "BC8B24C5D072EB59711590B81AE22DE033E59FCD82B09196BBFCB29086E742E9",
         "checksum_algorithm": "sha256",
+    },
+    "darwin": {
+        "url": f"{DISTRIBUTE_SOURCE_URL}/openimageio-v3.0.6.1-macos_x86_64.tgz",
+        "checksum": "CF588FADEBFB1771B9C101B4352AF3236309B5C8457F2C59C7FC116CB77CFA11",
+        "checksum_algorithm": "sha256",
     }
 }
 
