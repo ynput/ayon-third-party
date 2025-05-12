@@ -66,17 +66,25 @@ FFMPEG_SOURCES = {
 OIIO_SOURCES = {
     "windows": {
         "url": f"{DISTRIBUTE_SOURCE_URL}/oiio_tools-3.0.6.1-windows.zip",
-        "checksum": "6B35A08B8A50323D78389901673C6B2B9EE25950C22949F0334E3EC6EC23F5EF",
+        "checksum": (
+            "6B35A08B8A50323D78389901673C6B2B9EE25950C22949F0334E3EC6EC23F5EF"
+        ),
         "checksum_algorithm": "sha256",
     },
     "linux": {
         "url": f"{DISTRIBUTE_SOURCE_URL}/openimageio-v3.0.6.1-rocky8.tar.gz",
-        "checksum": "BC8B24C5D072EB59711590B81AE22DE033E59FCD82B09196BBFCB29086E742E9",
+        "checksum": (
+            "BC8B24C5D072EB59711590B81AE22DE033E59FCD82B09196BBFCB29086E742E9"
+        ),
         "checksum_algorithm": "sha256",
     },
     "darwin": {
-        "url": f"{DISTRIBUTE_SOURCE_URL}/openimageio-v3.0.6.1-macos_x86_64.tgz",
-        "checksum": "CF588FADEBFB1771B9C101B4352AF3236309B5C8457F2C59C7FC116CB77CFA11",
+        "url": (
+            f"{DISTRIBUTE_SOURCE_URL}/openimageio-v3.0.6.1-macos_x86_64.tgz"
+        ),
+        "checksum": (
+            "CF588FADEBFB1771B9C101B4352AF3236309B5C8457F2C59C7FC116CB77CFA11"
+        ),
         "checksum_algorithm": "sha256",
     }
 }
