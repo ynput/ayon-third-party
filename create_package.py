@@ -67,14 +67,14 @@ OIIO_SOURCES = {
     "windows": {
         "url": f"{DISTRIBUTE_SOURCE_URL}/oiio_tools-3.0.6.1-windows.zip",
         "checksum": (
-            "6B35A08B8A50323D78389901673C6B2B9EE25950C22949F0334E3EC6EC23F5EF"
+            "6b35a08b8a50323d78389901673c6b2b9ee25950c22949f0334e3ec6ec23f5ef"
         ),
         "checksum_algorithm": "sha256",
     },
     "linux": {
         "url": f"{DISTRIBUTE_SOURCE_URL}/openimageio-v3.0.6.1-rocky8.tar.gz",
         "checksum": (
-            "BC8B24C5D072EB59711590B81AE22DE033E59FCD82B09196BBFCB29086E742E9"
+            "bc8b24c5d072eb59711590b81ae22de033e59fcd82b09196bbfcb29086e742e9"
         ),
         "checksum_algorithm": "sha256",
     },
@@ -83,7 +83,7 @@ OIIO_SOURCES = {
             f"{DISTRIBUTE_SOURCE_URL}/openimageio-v3.0.6.1-macos_x86_64.tgz"
         ),
         "checksum": (
-            "CF588FADEBFB1771B9C101B4352AF3236309B5C8457F2C59C7FC116CB77CFA11"
+            "cf588fadebfb1771b9c101b4352af3236309b5c8457f2c59c7fc116cb77cfa11"
         ),
         "checksum_algorithm": "sha256",
     }
@@ -162,7 +162,7 @@ def calculate_file_checksum(filepath, hash_algorithm, chunk_size=10000):
         chunk_size (int): Size of chunks to read from file.
 
     Returns:
-        str: Lowercase checksum of a file.
+        str: Checksum of a file.
 
     """
     func = getattr(hashlib, hash_algorithm)
@@ -170,7 +170,7 @@ def calculate_file_checksum(filepath, hash_algorithm, chunk_size=10000):
     with open(filepath, "rb") as f:
         for chunk in iter(lambda: f.read(chunk_size), b""):
             hash_obj.update(chunk)
-    return hash_obj.hexdigest().lower()
+    return hash_obj.hexdigest()
 
 
 def download_ffmpeg_archive(downloads_dir: str, log: logging.Logger):
