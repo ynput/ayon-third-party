@@ -141,12 +141,23 @@ class ZipFileLongPaths(zipfile.ZipFile):
 
 
 def calculate_file_checksum(filepath, hash_algorithm, chunk_size=10000):
+    """Calculate file checksum.
+
+    Args:
+        filepath (str): Path to file.
+        hash_algorithm (str): Hash algorithm to use.
+        chunk_size (int): Size of chunks to read from file.
+
+    Returns:
+        str: Lowercase checksum of a file.
+
+    """
     func = getattr(hashlib, hash_algorithm)
     hash_obj = func()
     with open(filepath, "rb") as f:
         for chunk in iter(lambda: f.read(chunk_size), b""):
             hash_obj.update(chunk)
-    return hash_obj.hexdigest()
+    return hash_obj.hexdigest().lower()
 
 
 def download_ffmpeg_archive(downloads_dir: str, log: logging.Logger):
@@ -155,7 +166,7 @@ def download_ffmpeg_archive(downloads_dir: str, log: logging.Logger):
         src_url: str = platform_info["url"]
         filename: str = src_url.split("/")[-1]
         archive_path: str = os.path.join(downloads_dir, filename)
-        checksum: str = platform_info["checksum"]
+        checksum: str = platform_info["checksum"].lower()
         checksum_algorithm: str = platform_info["checksum_algorithm"]
         archive_files_info.append({
             "name": "ffmpeg",
@@ -196,7 +207,7 @@ def download_oiio_archive(downloads_dir: str, log: logging.Logger):
         src_url: str = platform_info["url"]
         filename: str = src_url.split("/")[-1]
         archive_path: str = os.path.join(downloads_dir, filename)
-        checksum: str = platform_info["checksum"]
+        checksum: str = platform_info["checksum"].lower()
         checksum_algorithm: str = platform_info["checksum_algorithm"]
         archive_files_info.append({
             "name": "oiio",
