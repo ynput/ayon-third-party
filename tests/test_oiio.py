@@ -4,6 +4,9 @@ import shutil
 import subprocess
 import platform
 import logging
+import requests
+import zipfile
+import tarfile
 
 OIIO_DIR = "oiio"
 ALL_EXR_FILES = [
@@ -45,6 +48,21 @@ def reference_file(workdir, testname, subdir, image, ext):
     )
 
 
+def download_file(url, destination):
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            with open(destination, "wb") as file:
+                file.write(response.content)
+            logging.info(f"File downloaded and saved to {destination}")
+        else:
+            raise requests.HTTPError(
+                f"Failed to download {url}. Status code: {response.status_code}"
+            )
+    except Exception as err:
+        raise requests.ConnectionError(f"Failed to download {url}: {err}")
+
+
 @pytest.fixture
 def work_dir():
     td = "./tests/work_dir"
@@ -65,46 +83,29 @@ def oiiotool(work_dir):
 
         url = OIIO_SOURCES[plat]["url"]
         archive = os.path.basename(url)
+        archive_path = os.path.join(work_dir, archive)
+        oiio_dir = os.path.join(work_dir, OIIO_DIR)
 
-        if not os.path.exists(os.path.join(work_dir, archive)):
-            status = subprocess.run(
-                [
-                    "curl",
-                    "-L",
-                    OIIO_SOURCES[plat]["url"],
-                    "--output",
-                    os.path.join(work_dir, archive),
-                ],
-                check=True,
-            )
-            if status.returncode != 0:
-                raise RuntimeError("Failed to download OIIO tools")
+        if not os.path.exists(archive_path):
+            download_file(url, archive_path)
 
         if archive.endswith(".zip"):
-            status = subprocess.run(
-                [
-                    "unzip",
-                    os.path.join(work_dir, archive),
-                    "-d",
-                    os.path.join(work_dir, OIIO_DIR),
-                ],
-                check=True,
-            )
-            if status.returncode != 0:
-                raise RuntimeError("Failed to unzip OIIO tools")
+            try:
+                with zipfile.ZipFile(archive_path, "r") as zr:
+                    zr.extractall(oiio_dir)
+            except zipfile.BadZipFile as err:
+                raise RuntimeError(f"Failed to unzip: {err}")
+            except Exception as err:
+                raise RuntimeError(f"Failed to unzip OIIO tools: {err}")
         else:
-            status = subprocess.run(
-                [
-                    "tar",
-                    "-xzf",
-                    os.path.join(work_dir, archive),
-                    "-C",
-                    os.path.join(work_dir, OIIO_DIR),
-                ],
-                check=True,
-            )
-            if status.returncode != 0:
-                raise RuntimeError("Failed to untar OIIO tools")
+            try:
+                mode = {"gz": "r:gz", "bz": "r:bz"}.get(
+                    os.path.splitext(archive)[1][-2:]
+                )
+                with tarfile.open(archive_path, mode) as tf: # type: ignore
+                    tf.extractall(oiio_dir)
+            except tarfile.TarError as err:
+                raise RuntimeError(f"Failed to untar OIIO tools: {err}")
 
     return os.path.join(
         work_dir,
