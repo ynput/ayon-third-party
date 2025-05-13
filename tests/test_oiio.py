@@ -54,10 +54,11 @@ def download_file(url, destination):
         if response.status_code == 200:
             with open(destination, "wb") as file:
                 file.write(response.content)
-            logging.info(f"File downloaded and saved to {destination}")
+            logging.debug(f"File downloaded and saved to {destination}")
         else:
             raise requests.HTTPError(
-                f"Failed to download {url}. Status code: {response.status_code}"
+                f"Failed to download {url}. "
+                f"Status code: {response.status_code}"
             )
     except Exception as err:
         raise requests.ConnectionError(f"Failed to download {url}: {err}")
@@ -102,7 +103,7 @@ def oiiotool(work_dir):
                 mode = {"gz": "r:gz", "bz": "r:bz"}.get(
                     os.path.splitext(archive)[1][-2:]
                 )
-                with tarfile.open(archive_path, mode) as tf: # type: ignore
+                with tarfile.open(archive_path, mode) as tf:  # type: ignore
                     tf.extractall(oiio_dir)
             except tarfile.TarError as err:
                 raise RuntimeError(f"Failed to untar OIIO tools: {err}")
