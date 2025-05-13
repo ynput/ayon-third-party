@@ -179,7 +179,7 @@ def download_ffmpeg_archive(downloads_dir: str, log: logging.Logger):
         src_url: str = platform_info["url"]
         filename: str = src_url.split("/")[-1]
         archive_path: str = os.path.join(downloads_dir, filename)
-        checksum: str = platform_info["checksum"].lower()
+        checksum: str = platform_info["checksum"]
         checksum_algorithm: str = platform_info["checksum_algorithm"]
         archive_files_info.append({
             "name": "ffmpeg",
@@ -220,7 +220,7 @@ def download_oiio_archive(downloads_dir: str, log: logging.Logger):
         src_url: str = platform_info["url"]
         filename: str = src_url.split("/")[-1]
         archive_path: str = os.path.join(downloads_dir, filename)
-        checksum: str = platform_info["checksum"].lower()
+        checksum: str = platform_info["checksum"]
         checksum_algorithm: str = platform_info["checksum_algorithm"]
         archive_files_info.append({
             "name": "oiio",
