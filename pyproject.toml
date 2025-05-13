@@ -18,4 +18,9 @@ dependencies = [
     "mdx-gh-links>=0.4",
     "pymdown-extensions>=10.14.3",
     "mike>=2.1.3",
+    "pytest>=8.3.5",
 ]
+[tool.pytest.ini_options]
+log_cli = true
+log_cli_level = "INFO"
+testpaths = ["tests"]
