@@ -65,16 +65,25 @@ FFMPEG_SOURCES = {
 }
 OIIO_SOURCES = {
     "windows": {
-        "url": f"{DISTRIBUTE_SOURCE_URL}/oiio_tools-2.3.10-windows.zip",
+        "url": f"{DISTRIBUTE_SOURCE_URL}/openimageio-v3.0.6.1-windows.zip",
         "checksum": (
-            "b9950f5d2fa3720b52b8be55bacf5f56d33f9e029d38ee86534995f3d8d253d2"
+            "83e412e917f2f778df7a1accd5e49120b8d2e0f43238e5348ab37b9e29ac7d9b"
         ),
         "checksum_algorithm": "sha256",
     },
     "linux": {
-        "url": f"{DISTRIBUTE_SOURCE_URL}/oiio_tools-2.2.20-linux-centos7.tgz",
+        "url": f"{DISTRIBUTE_SOURCE_URL}/openimageio-v3.0.6.1-rocky8.tar.gz",
         "checksum": (
-            "3894dec7e4e521463891a869586850e8605f5fd604858b674c87323bf33e273d"
+            "bc8b24c5d072eb59711590b81ae22de033e59fcd82b09196bbfcb29086e742e9"
+        ),
+        "checksum_algorithm": "sha256",
+    },
+    "darwin": {
+        "url": (
+            f"{DISTRIBUTE_SOURCE_URL}/openimageio-v3.0.6.1-macos_x86_64.tgz"
+        ),
+        "checksum": (
+            "cf588fadebfb1771b9c101b4352af3236309b5c8457f2c59c7fc116cb77cfa11"
         ),
         "checksum_algorithm": "sha256",
     }
@@ -145,6 +154,17 @@ class ZipFileLongPaths(zipfile.ZipFile):
 
 
 def calculate_file_checksum(filepath, hash_algorithm, chunk_size=10000):
+    """Calculate file checksum.
+
+    Args:
+        filepath (str): Path to file.
+        hash_algorithm (str): Hash algorithm to use.
+        chunk_size (int): Size of chunks to read from file.
+
+    Returns:
+        str: Checksum of a file.
+
+    """
     func = getattr(hashlib, hash_algorithm)
     hash_obj = func()
     with open(filepath, "rb") as f:
@@ -218,9 +238,10 @@ def download_oiio_archive(downloads_dir: str, log: logging.Logger):
             os.remove(archive_path)
         log.debug(f"OIIO archive from {src_url} -> {archive_path}")
 
-        log.info("OIIO archive download - started")
+        log.info("OIIO archive download - started: %s", src_url)
         urllib.request.urlretrieve(src_url, archive_path)
-        log.info("OIIO archive download - finished")
+        log.info(
+            "OIIO archive download - finished: %s", archive_path)
 
         file_checksum = calculate_file_checksum(
             archive_path, checksum_algorithm
