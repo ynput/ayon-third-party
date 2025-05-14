@@ -538,9 +538,8 @@ def _fill_oiio_tool_args(
             download_oiio()
 
         path_parts = [get_downloaded_oiio_root()]
-        if platform_name == "linux":
-            path_parts.append("bin")
-        elif platform_name == "windows":
+        path_parts.append("bin")
+        if platform_name == "windows":
             tool_name = f"{tool_name}.exe"
         path_parts.append(tool_name)
 

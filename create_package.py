@@ -65,9 +65,9 @@ FFMPEG_SOURCES = {
 }
 OIIO_SOURCES = {
     "windows": {
-        "url": f"{DISTRIBUTE_SOURCE_URL}/oiio_tools-3.0.6.1-windows.zip",
+        "url": f"{DISTRIBUTE_SOURCE_URL}/openimageio-v3.0.6.1-windows.zip",
         "checksum": (
-            "6b35a08b8a50323d78389901673c6b2b9ee25950c22949f0334e3ec6ec23f5ef"
+            "83e412e917f2f778df7a1accd5e49120b8d2e0f43238e5348ab37b9e29ac7d9b"
         ),
         "checksum_algorithm": "sha256",
     },
@@ -238,9 +238,10 @@ def download_oiio_archive(downloads_dir: str, log: logging.Logger):
             os.remove(archive_path)
         log.debug(f"OIIO archive from {src_url} -> {archive_path}")
 
-        log.info("OIIO archive download - started")
+        log.info("OIIO archive download - started: %s", src_url)
         urllib.request.urlretrieve(src_url, archive_path)
-        log.info("OIIO archive download - finished")
+        log.info(
+            "OIIO archive download - finished: %s", archive_path)
 
         file_checksum = calculate_file_checksum(
             archive_path, checksum_algorithm
