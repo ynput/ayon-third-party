@@ -1,5 +1,6 @@
 import pytest
 import os
+from pathlib import Path
 import shutil
 import subprocess
 import platform
@@ -66,28 +67,31 @@ def download_file(url, destination):
 
 @pytest.fixture
 def work_dir():
-    td = "./tests/work_dir"
-    if not os.path.exists(td):
-        os.mkdir(td)
+    td = Path("./tests/work_dir").resolve()
+    if not td.exists():
+        td.mkdir(parents=True)
     return td
 
 
 @pytest.fixture
 def oiiotool(work_dir):
     plat = platform.system().lower()
-    if not os.path.exists(os.path.join(work_dir, OIIO_DIR)):
-        os.mkdir(os.path.join(work_dir, OIIO_DIR))
-    if not os.path.exists(os.path.join(work_dir, "results")):
-        os.mkdir(os.path.join(work_dir, "results"))
-    if not os.path.exists(os.path.join(work_dir, OIIO_DIR, "bin")):
+    oiio_dir = Path(work_dir) / OIIO_DIR
+    if not oiio_dir.exists():
+        oiio_dir.mkdir()
+
+    results_dir = Path(work_dir) / "results"
+    if not results_dir.exists():
+        results_dir.mkdir()
+
+    if not (oiio_dir / "bin").exists():
         from create_package import OIIO_SOURCES
 
         url = OIIO_SOURCES[plat]["url"]
         archive = os.path.basename(url)
-        archive_path = os.path.join(work_dir, archive)
-        oiio_dir = os.path.join(work_dir, OIIO_DIR)
+        archive_path = Path(work_dir) / archive
 
-        if not os.path.exists(archive_path):
+        if not archive_path.exists():
             download_file(url, archive_path)
 
         if archive.endswith(".zip"):
@@ -108,12 +112,9 @@ def oiiotool(work_dir):
             except tarfile.TarError as err:
                 raise RuntimeError(f"Failed to untar OIIO tools: {err}")
 
-    return os.path.join(
-        work_dir,
-        OIIO_DIR,
-        "bin",
-        "oiiotool.exe" if plat == "windows" else "oiiotool",
-    )
+    return (Path(work_dir) / OIIO_DIR).resolve() / "bin" / (
+        "oiiotool.exe" if plat == "windows" else "oiiotool")
+
 
 
 def _compare_to_reference(oiiotool, out_file, ref_file):
