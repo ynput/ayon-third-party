@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import json
 import platform
@@ -12,7 +14,7 @@ import typing
 import tempfile
 import time
 import uuid
-from typing import Optional, Tuple, List, Dict, Any
+from typing import Optional, Any
 
 import ayon_api
 from ayon_api import TransferProgress
@@ -166,14 +168,14 @@ def validate_file_checksum(
 
 def get_archive_ext_and_type(
     archive_file: str
-) -> Tuple[Optional[str], Optional[str]]:
+) -> tuple[Optional[str], Optional[str]]:
     """Get archive extension and type.
 
     Args:
         archive_file (str): Path to archive file.
 
     Returns:
-        Tuple[str, str]: Archive extension and type.
+        tuple[Optional[str], Optional[str]]: Archive extension and type.
 
     """
     tmp_name = archive_file.lower()
@@ -258,7 +260,7 @@ def _get_addon_endpoint() -> str:
     return f"addons/{ADDON_NAME}/{__version__}"
 
 
-def get_server_files_info() -> List["ToolDownloadInfo"]:
+def get_server_files_info() -> list["ToolDownloadInfo"]:
     """Receive zip file info from server.
 
     Information must contain at least 'filename' and 'hash' with md5 zip
@@ -291,7 +293,7 @@ def _makedirs(path: str):
         os.makedirs(path, exist_ok=True)
 
 
-def _check_args_returncode(args: List[str]) -> bool:
+def _check_args_returncode(args: list[str]) -> bool:
     try:
         kwargs = {}
         if platform.system().lower() == "windows":
@@ -321,7 +323,7 @@ def _check_args_returncode(args: List[str]) -> bool:
     return proc.returncode == 0
 
 
-def validate_ffmpeg_args(args: List[str]) -> bool:
+def validate_ffmpeg_args(args: list[str]) -> bool:
     """Validate ffmpeg arguments.
 
     Args:
@@ -336,7 +338,7 @@ def validate_ffmpeg_args(args: List[str]) -> bool:
     return _check_args_returncode(args + ["-version"])
 
 
-def validate_oiio_args(args: List[str]) -> bool:
+def validate_oiio_args(args: list[str]) -> bool:
     """Validate oiio arguments.
 
     Args:
@@ -374,13 +376,13 @@ def _read_progress_file(progress_path: str):
 
 
 def _find_file_info(
-    name: str, files_info: List["ToolDownloadInfo"]
+    name: str, files_info: list["ToolDownloadInfo"]
 ) -> Optional["ToolDownloadInfo"]:
     """Find file info by name.
 
     Args:
         name (str): Name of file to find.
-        files_info (List[ToolDownloadInfo]): List of file info dicts.
+        files_info (list[ToolDownloadInfo]): List of file info dicts.
 
     Returns:
         Optional[ToolDownloadInfo]: File info data.
@@ -416,7 +418,7 @@ def _get_tool_resource_dir(
 
 
 def get_downloaded_ffmpeg_root(
-    server_files_info: Optional[Dict[str, Any]] = None
+    server_files_info: Optional[dict[str, Any]] = None
 ) -> Optional[str]:
     if _FFmpegArgs.downloaded_root is NOT_SET:
         _FFmpegArgs.downloaded_root = _get_tool_resource_dir(
@@ -426,7 +428,7 @@ def get_downloaded_ffmpeg_root(
 
 
 def get_downloaded_oiio_root(
-    server_files_info: Optional[Dict[str, Any]] = None
+    server_files_info: Optional[dict[str, Any]] = None
 ) -> Optional[str]:
     if _OIIOArgs.downloaded_root is NOT_SET:
         _OIIOArgs.downloaded_root = _get_tool_resource_dir(
@@ -437,8 +439,8 @@ def get_downloaded_oiio_root(
 
 def _fill_ffmpeg_tool_args(
     tool_name: "FFmpegToolname",
-    addon_settings: Optional[Dict[str, Any]] = None,
-) -> Optional[List[str]]:
+    addon_settings: Optional[dict[str, Any]] = None,
+) -> Optional[list[str]]:
     if tool_name not in _FFmpegArgs.tools:
         joined_tools = ", ".join([f"'{t}'" for t in _FFmpegArgs.tools])
         raise ValueError(
@@ -503,8 +505,8 @@ def _fill_ffmpeg_tool_args(
 
 def _fill_oiio_tool_args(
     tool_name: "OIIOToolName",
-    addon_settings: Optional[Dict[str, Any]] = None,
-) -> Optional[List[str]]:
+    addon_settings: Optional[dict[str, Any]] = None,
+) -> Optional[list[str]]:
     if tool_name not in _OIIOArgs.tools:
         joined_tools = ", ".join([f"'{t}'" for t in _OIIOArgs.tools])
         raise ValueError(
@@ -569,7 +571,7 @@ def _fill_oiio_tool_args(
 
 
 def is_ffmpeg_download_needed(
-    addon_settings: Optional[Dict[str, Any]] = None
+    addon_settings: Optional[dict[str, Any]] = None
 ) -> bool:
     """Check if is download needed.
 
@@ -600,7 +602,7 @@ def is_ffmpeg_download_needed(
 
 
 def is_oiio_download_needed(
-    addon_settings: Optional[Dict[str, Any]] = None
+    addon_settings: Optional[dict[str, Any]] = None
 ) -> bool:
     """Check if is download needed.
 
@@ -832,7 +834,7 @@ def download_oiio(progress: Optional[TransferProgress] = None):
 
 def get_ffmpeg_arguments(
     tool_name: "FFmpegToolname" = "ffmpeg"
-) -> Optional[List[str]]:
+) -> Optional[list[str]]:
     """Get arguments to run one of ffmpeg tools.
 
     Args:
@@ -851,7 +853,7 @@ def get_ffmpeg_arguments(
 
 def get_oiio_arguments(
     tool_name: "OIIOToolName" = "oiiotool"
-) -> Optional[List[str]]:
+) -> Optional[list[str]]:
     """Get arguments to run one of OpenImageIO tools.
 
     Possible OIIO tools:
