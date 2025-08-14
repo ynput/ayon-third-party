@@ -4,6 +4,7 @@ name = "ayon_third_party"
 version = "1.3.0+dev"
 title = "3rd Party Distribution"
 client_dir = "ayon_third_party"
+project_can_override_addon_version = True
 
 ayon_required_addons = {
     "core": ">=0.3.0",
