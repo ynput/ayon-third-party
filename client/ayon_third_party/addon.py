@@ -1,3 +1,8 @@
+from __future__ import annotations
+
+import typing
+from typing import Optional, Any
+
 from ayon_core.addon import AYONAddon, ITrayAddon
 
 from .constants import ADDON_NAME
@@ -6,6 +11,9 @@ from .utils import (
     is_ffmpeg_download_needed,
     is_oiio_download_needed,
 )
+
+if typing.TYPE_CHECKING:
+    from .download_ui import DownloadWindow
 
 
 class ThirdPartyDistAddon(AYONAddon, ITrayAddon):
@@ -20,19 +28,19 @@ class ThirdPartyDistAddon(AYONAddon, ITrayAddon):
     name = ADDON_NAME
     version = __version__
 
-    def initialize(self, settings):
-        self._download_window = None
+    def initialize(self, settings: dict[str, Any]) -> None:
+        self._download_window: Optional["DownloadWindow"] = None
 
-    def tray_exit(self):
+    def tray_exit(self) -> None:
         pass
 
-    def tray_menu(self, tray_menu):
+    def tray_menu(self, tray_menu) -> None:
         pass
 
-    def tray_init(self):
+    def tray_init(self) -> None:
         pass
 
-    def tray_start(self):
+    def tray_start(self) -> None:
         download_ffmpeg = is_ffmpeg_download_needed()
         download_oiio = is_oiio_download_needed()
         if not download_oiio and not download_ffmpeg:
@@ -47,6 +55,6 @@ class ThirdPartyDistAddon(AYONAddon, ITrayAddon):
         download_window.start()
         self._download_window = download_window
 
-    def _on_download_finish(self):
+    def _on_download_finish(self) -> None:
         self._download_window.close()
         self._download_window = None
