@@ -31,28 +31,11 @@ from .version import __version__
 from .constants import ADDON_NAME
 
 if typing.TYPE_CHECKING:
-    from typing import Literal, TypedDict
-
-    OIIOToolName = Literal[
-        "oiiotool", "maketx", "iv", "iinfo", "igrep", "idiff", "iconvert"
-    ]
-    FFmpegToolname = Literal["ffmpeg", "ffprobe"]
-
-
-    class ToolInfo(TypedDict):
-        root: str
-        checksum: str
-        checksum_algorithm: str
-        downloaded: str
-
-
-    class ToolDownloadInfo(TypedDict):
-        name: Literal["ffmpeg", "oiio"]
-        filename: str
-        checksum: str
-        checksum_algorithm: str
-        platform: Literal["windows", "linux", "darwin"]
-
+    from .typing import (
+        OIIOToolName,
+        FFmpegToolname,
+        ToolDownloadInfo,
+    )
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 NOT_SET = type("NOT_SET", (), {"__bool__": lambda: False})()
