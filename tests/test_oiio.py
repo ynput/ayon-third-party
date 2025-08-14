@@ -116,7 +116,6 @@ def oiiotool(work_dir):
         "oiiotool.exe" if plat == "windows" else "oiiotool")
 
 
-
 def _compare_to_reference(oiiotool, out_file, ref_file):
     # Compare to reference image
     # use `UPDATE_REFS=1 pytest tests` to updat the reference images

@@ -95,7 +95,6 @@ class OIIOSettings(BaseSettingsModel):
     )
 
 
-
 class ThirdPartySettings(BaseSettingsModel):
     """Third party addon settings."""
 
