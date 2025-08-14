@@ -7,5 +7,5 @@ client_dir = "ayon_third_party"
 project_can_override_addon_version = True
 
 ayon_required_addons = {
-    "core": ">=0.3.0",
+    "core": ">=1.1.6",
 }

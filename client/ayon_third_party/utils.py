@@ -19,15 +19,7 @@ from typing import Optional, Any
 import ayon_api
 from ayon_api import TransferProgress
 
-from ayon_core.lib import Logger, CacheItem
-try:
-    from ayon_core.lib import get_launcher_storage_dir
-except ImportError:
-    from ayon_core.lib import get_ayon_appdirs as get_launcher_storage_dir
-try:
-    from ayon_core.lib import get_addons_resources_dir
-except ImportError:
-    get_addons_resources_dir = None
+from ayon_core.lib import Logger, CacheItem, get_addons_resources_dir
 
 from .version import __version__
 from .constants import ADDON_NAME
@@ -354,17 +346,7 @@ def validate_oiio_args(args: list[str]) -> bool:
 
 
 def _get_resources_dir(*args) -> str:
-    # NOTE Helper function 'get_addons_resources_dir' is being added
-    #   to ayon-core 1.1.6 (or 1.2.0)
-    if get_addons_resources_dir is not None:
-        return get_addons_resources_dir(ADDON_NAME, *args)
-
-    addons_resources_dir = os.getenv("AYON_ADDONS_RESOURCES_DIR")
-    if addons_resources_dir:
-        return os.path.join(addons_resources_dir, ADDON_NAME, *args)
-    return get_launcher_storage_dir(
-        "addons_resources", ADDON_NAME, *args
-    )
+    return get_addons_resources_dir(ADDON_NAME, *args)
 
 
 def _read_progress_file(progress_path: str):
