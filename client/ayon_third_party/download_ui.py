@@ -17,6 +17,7 @@ from .utils import (
     download_oiio,
 )
 
+
 @dataclass
 class ErrorInfo:
     message: str
