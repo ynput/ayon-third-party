@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Package declaring addon version."""
 name = "ayon_third_party"
-version = "1.3.0+dev"
+version = "1.4.0"
 title = "3rd Party Distribution"
 client_dir = "ayon_third_party"
 project_can_override_addon_version = True
