@@ -7,13 +7,17 @@ from ayon_server.addons import BaseServerAddon
 from ayon_server.api.dependencies import dep_current_user
 from ayon_server.entities import UserEntity
 
-from .settings import ThirdPartySettings
+from .settings import ThirdPartySettings, DEFAULT_SETTINGS
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class ThirdPartyDistAddon(BaseServerAddon):
     settings_model = ThirdPartySettings
+
+    async def get_default_settings(self):
+        settings_model_cls = self.get_settings_model()
+        return settings_model_cls(**DEFAULT_SETTINGS)
 
     def initialize(self):
         self.add_endpoint(

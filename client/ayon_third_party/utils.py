@@ -31,6 +31,7 @@ if typing.TYPE_CHECKING:
         ToolDownloadInfo,
     )
 
+PLATFORM_NAME = platform.system().lower()
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 NOT_SET = type("NOT_SET", (), {"__bool__": lambda: False})()
 IMPLEMENTED_ARCHIVE_FORMATS = {
@@ -370,14 +371,13 @@ def _find_file_info(
         Optional[ToolDownloadInfo]: File info data.
 
     """
-    platform_name = platform.system().lower()
     return next(
         (
             file_info
             for file_info in files_info
             if (
                 file_info["name"] == name
-                and file_info["platform"] == platform_name
+                and file_info["platform"] == PLATFORM_NAME
             )
         ),
         None
@@ -399,7 +399,7 @@ def _get_tool_resource_dir(
     return _get_resources_dir(f"{tool_name}_{platform_name}_{checksum}")
 
 
-def get_downloaded_ffmpeg_root(
+def _get_downloaded_ffmpeg_root(
     server_files_info: Optional[dict[str, Any]] = None
 ) -> Optional[str]:
     if _FFmpegArgs.downloaded_root is NOT_SET:
@@ -429,58 +429,61 @@ def _fill_ffmpeg_tool_args(
             f"Invalid tool name '{tool_name}'. Expected {joined_tools}"
         )
 
+    tool_filename = tool_name
+    if PLATFORM_NAME == "windows":
+        tool_filename = f"{tool_name}.exe"
+
     if addon_settings is None:
         addon_settings = get_addon_settings()
-    platform_name = platform.system().lower()
+
     ffmpeg_settings = addon_settings["ffmpeg"]
-    if ffmpeg_settings["use_downloaded"]:
-        if is_ffmpeg_download_needed(addon_settings):
-            download_ffmpeg()
-
-        path_parts = [get_downloaded_ffmpeg_root()]
-        if platform_name == "windows":
-            path_parts.append("bin")
-            tool_name = f"{tool_name}.exe"
-        path_parts.append(tool_name)
-
-        args = [
-            os.path.sep.join(path_parts)
-        ]
-        if not validate_ffmpeg_args(args):
-            args = None
-        _FFmpegArgs.tools[tool_name] = args
-        return args
-
-    for custom_args in ffmpeg_settings["custom_args"][tool_name]:
-        if custom_args and validate_ffmpeg_args(custom_args):
+    for item in ffmpeg_settings[PLATFORM_NAME]:
+        receive_type = item["receive_type"]
+        if receive_type == "custom_args":
+            custom_args = list(ffmpeg_settings["custom_args"][tool_name])
+            if not validate_ffmpeg_args(custom_args):
+                continue
             _FFmpegArgs.tools[tool_name] = custom_args
             return custom_args
 
-    custom_roots = list(
-        ffmpeg_settings
-        ["custom_roots"]
-        [platform_name]
-    )
-    filtered_roots = []
-    format_data = dict(os.environ.items())
-    for root in custom_roots:
-        if not root:
-            continue
-        try:
-            root = root.format(**format_data)
-        except (ValueError, KeyError):
-            print("Failed to format root '{}'".format(root))
+        if receive_type == "download":
+            if is_ffmpeg_download_needed(addon_settings):
+                download_ffmpeg()
 
-        if os.path.exists(root):
-            filtered_roots.append(root)
+            path_parts = [_get_downloaded_ffmpeg_root()]
+            if PLATFORM_NAME == "windows":
+                path_parts.append("bin")
+            path_parts.append(tool_filename)
+
+            args = [
+                os.path.sep.join(path_parts)
+            ]
+            if not validate_ffmpeg_args(args):
+                continue
+            _FFmpegArgs.tools[tool_name] = args
+            return args
+
+        if receive_type == "custom_root":
+            custom_root = item["custom_root"]
+            try:
+                custom_root = custom_root.format_map(os.environ)
+            except (ValueError, KeyError):
+                print(f"Failed to format custom root '{custom_root}'")
+                continue
+
+            tool_path = tool_name
+            if custom_root:
+                tool_path = os.path.join(custom_root, tool_path)
+            args = [tool_path]
+            if not validate_ffmpeg_args(args):
+                continue
+
+            _FFmpegArgs.tools[tool_name] = args
+            return args
+
+
 
     final_args = None
-    for root in filtered_roots:
-        tool_path = os.path.join(root, tool_name)
-        args = [tool_path]
-        if validate_ffmpeg_args(args):
-            final_args = args
-            break
     _FFmpegArgs.tools[tool_name] = final_args
     return final_args
 
@@ -568,16 +571,17 @@ def is_ffmpeg_download_needed(
         addon_settings = get_addon_settings()
     ffmpeg_settings = addon_settings["ffmpeg"]
     download_needed = False
-    if ffmpeg_settings["use_downloaded"]:
-        # Check what is required by server
-        ffmpeg_root = get_downloaded_ffmpeg_root()
-        progress_info = {}
-        if ffmpeg_root:
-            progress_path = os.path.join(
-                ffmpeg_root, DIST_PROGRESS_FILENAME
-            )
-            progress_info = _read_progress_file(progress_path)
-        download_needed = progress_info.get("state") != "done"
+    for item in ffmpeg_settings[PLATFORM_NAME]:
+        if item["download"]:
+            # Check what is required by server
+            ffmpeg_root = _get_downloaded_ffmpeg_root()
+            progress_info = {}
+            if ffmpeg_root:
+                progress_path = os.path.join(
+                    ffmpeg_root, DIST_PROGRESS_FILENAME
+                )
+                progress_info = _read_progress_file(progress_path)
+            download_needed = progress_info.get("state") != "done"
 
     _FFmpegArgs.download_needed = download_needed
     return _FFmpegArgs.download_needed
@@ -788,7 +792,7 @@ def download_ffmpeg(
             "Couldn't find ffmpeg source file for platform '{}'"
         ).format(platform.system()))
 
-    dirpath = get_downloaded_ffmpeg_root()
+    dirpath = _get_downloaded_ffmpeg_root()
     log.debug(f"Downloading ffmpeg into: '{dirpath}'")
     if not _download_file(file_info, dirpath, progress=progress):
         log.debug("Other processed already downloaded and extracted ffmpeg.")
