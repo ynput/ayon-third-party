@@ -1,13 +1,7 @@
 from ayon_server.settings import (
     BaseSettingsModel,
     SettingsField,
-    MultiplatformPathListModel,
 )
-
-
-class CustomArgumentsItem(BaseSettingsModel):
-    _layout = "expanded"
-    args: list[str] = SettingsField(default_factory=list, title="Arguments")
 
 
 class CustomFFmpegArgumentsModel(BaseSettingsModel):
@@ -24,6 +18,7 @@ class CustomFFmpegArgumentsModel(BaseSettingsModel):
 def _ffmpeg_windows_enum():
     return [
         {"value": "download", "label": "Download from AYON server"},
+        {"value": "winget", "label": "Install with WinGet"},
         {"value": "custom_root", "label": "Custom root"},
         {"value": "custom_args", "label": "Custom arguments"},
     ]
@@ -125,86 +120,3 @@ class FFmpegSettings(BaseSettingsModel):
         default_factory=list,
         title="macOs",
     )
-
-
-class CustomOIIOArgumentsModel(BaseSettingsModel):
-    oiiotool: list[CustomArgumentsItem] = SettingsField(
-        default_factory=list,
-        title="*Tool 'oiiotool'"
-    )
-    maketx: list[CustomArgumentsItem] = SettingsField(
-        default_factory=list,
-        title="*Tool 'maketx'"
-    )
-    iv: list[CustomArgumentsItem] = SettingsField(
-        default_factory=list,
-        title="Tool 'iv'"
-    )
-    iinfo: list[CustomArgumentsItem] = SettingsField(
-        default_factory=list,
-        title="Tool 'iinfo'"
-    )
-    igrep: list[CustomArgumentsItem] = SettingsField(
-        default_factory=list,
-        title="Tool 'igrep'"
-    )
-    idiff: list[CustomArgumentsItem] = SettingsField(
-        default_factory=list,
-        title="Tool 'idiff'"
-    )
-    iconvert: list[CustomArgumentsItem] = SettingsField(
-        default_factory=list,
-        title="Tool 'iconvert'"
-    )
-
-
-class OIIOSettings(BaseSettingsModel):
-    use_downloaded: bool = SettingsField(
-        default=True,
-        title="Download OpenImageIO from server",
-        description="If disabled, one of custom options must be used",
-    )
-    custom_roots: MultiplatformPathListModel = SettingsField(
-        default_factory=MultiplatformPathListModel,
-        title="Custom root",
-        description=(
-            "Root to directory where OpenImageIO binaries can be found"
-        ),
-    )
-    custom_args: CustomOIIOArgumentsModel = SettingsField(
-        default_factory=CustomOIIOArgumentsModel,
-        title="Custom arguments",
-        description=(
-            "Custom arguments that will be used to launch OIIO tools"
-        ),
-    )
-
-
-class ThirdPartySettings(BaseSettingsModel):
-    """Third party addon settings."""
-
-    ffmpeg: FFmpegSettings = SettingsField(
-        default_factory=FFmpegSettings,
-        title="FFmpeg",
-    )
-    oiio: OIIOSettings = SettingsField(
-        default_factory=OIIOSettings,
-        title="OpenImageIO",
-    )
-
-
-DEFAULT_SETTINGS = {
-    "ffmpeg": {
-        "windows": [
-            {
-                "receive_type": "download",
-            }
-        ],
-        "linux": [
-            {
-                "receive_type": "download",
-            }
-        ],
-        "darwin": [],
-    }
-}
