@@ -346,6 +346,52 @@ def validate_oiio_args(args: list[str]) -> bool:
     return _check_args_returncode(args + ["--help"])
 
 
+def _homebrew_get_tool_path(
+    package_name: str, tool_name: str
+) -> Optional[str]:
+    try:
+        brew_prefix = subprocess.check_output(
+            ["brew", "--prefix", package_name],
+            text=True,
+            stderr=subprocess.DEVNULL
+        ).strip()
+        tool_root = os.path.join(brew_prefix, "bin")
+        tool_path = os.path.join(tool_root, tool_name)
+        if os.path.exists(tool_path):
+            return tool_path
+
+    except (subprocess.CalledProcessError, Exception):
+        log.info("Failed to get 'ffmpeg' prefix from homebrew")
+    return None
+
+
+def _homebrew_install(package_name: str, tool_name: str) -> Optional[str]:
+    """Install tool using homebrew.
+
+    This function does not validate the installed version. It could use very
+        old or very new version of ffmpeg.
+
+    Returns:
+        Optional[str]: Path to tool if installed.
+
+    """
+    if PLATFORM_NAME != "darwin":
+        return None
+
+    tool_path = _homebrew_get_tool_path(package_name, tool_name)
+    if not tool_path:
+        return None
+
+    log.info(f"Installing 'ffmpeg' using homebrew.")
+    try:
+        subprocess.check_call(["brew", "install", package_name])
+    except subprocess.CalledProcessError:
+        log.error(f"Failed to install '{package_name}' using homebrew.")
+        return None
+
+    return _homebrew_get_tool_path(package_name, tool_name)
+
+
 def _get_resources_dir(*args) -> str:
     return get_addons_resources_dir(ADDON_NAME, *args)
 
@@ -481,6 +527,13 @@ def _fill_ffmpeg_tool_args(
             _FFmpegArgs.tools[tool_name] = args
             return args
 
+        if receive_type == "homebrew":
+            tool_path = _homebrew_get_tool_path("ffmpeg", tool_filename)
+            if tool_path:
+                args = [tool_path]
+                if validate_ffmpeg_args(args):
+                    _FFmpegArgs.tools[tool_name] = args
+                    return args
 
 
     final_args = None
