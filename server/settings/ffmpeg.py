@@ -34,6 +34,7 @@ def _ffmpeg_linux_enum():
 
 def _ffmpeg_macos_enum():
     return [
+        {"value": "download", "label": "Download from AYON server"},
         {"value": "homebrew", "label": "Install with Homebrew"},
         {"value": "custom_root", "label": "Custom root"},
         {"value": "custom_args", "label": "Custom arguments"},
