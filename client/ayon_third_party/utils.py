@@ -14,6 +14,7 @@ import typing
 import tempfile
 import time
 import uuid
+from pathlib import Path
 from typing import Optional, Any
 
 import ayon_api
@@ -44,6 +45,119 @@ DOWNLOAD_WAIT_TRESHOLD_TIME = 20
 EXTRACT_WAIT_TRESHOLD_TIME = 20
 
 log = Logger.get_logger(__name__)
+
+
+class InstallTracker:
+    """Track installation progress of FFmpeg or OpenImageIO.
+
+    The tracking abilities are limited to support minimum options for UI.
+
+    Args:
+        title (str): Title of tool to install.
+
+    """
+    def __init__(self, title: str) -> None:
+        self._transfer_progress: TransferProgress | None = None
+        self._title: str = title
+        self._started: bool = False
+        self._finished: bool = False
+        self._success: bool = False
+
+    def get_title(self) -> str:
+        return self._title
+
+    def get_started(self) -> bool:
+        """Installation started.
+
+        Returns:
+            bool: True if installation process started, False otherwise.
+
+        """
+        return self._started
+
+    def get_finished(self) -> bool:
+        """Installation finished.
+
+        Install process finished, but not necessarily successful.
+
+        Returns:
+            bool: True if installation process finished, False otherwise.
+
+        """
+        return self._finished
+
+    def get_success(self) -> bool:
+        """Get installation success status.
+
+        By default, is returned value 'False'. First check for 'get_finished'.
+
+        Returns:
+            bool: True if installation was successful, False otherwise.
+
+        """
+        return self._success
+
+    def get_progress(self) -> int:
+        """Get installation progress.
+
+        Progress is state based and can change during installation.
+
+        Returns:
+            int: 0-100 progress of installation. -1 if progress cannot be
+                tracked using percentage.
+
+        """
+        if self._transfer_progress is None:
+            return -1
+        if self._transfer_progress.transfer_done:
+            return -1
+        if self._transfer_progress.transfer_progress is None:
+            return -1
+        return int(self._transfer_progress.transfer_progress)
+
+    def get_label(self) -> str:
+        """Progress label.
+
+        UI label representing current state of installation.
+
+        Returns:
+            str: Label of current state of installation.
+
+        """
+        if not self._started:
+            return "Starting..."
+
+        if self._finished:
+            if self._success:
+                return "Installed"
+            return "Failed!"
+
+        if self._transfer_progress is None:
+            return "Installing..."
+
+        if self._transfer_progress.transfer_done:
+            return "Extracting..."
+        return "Downloading..."
+
+    def set_started(self) -> None:
+        """Mark trackers as started."""
+        self._started = True
+
+    def set_transfer_progress(
+        self, transfer_progress: TransferProgress | None = None
+    ) -> None:
+        """Set transfer progress."""
+        self._transfer_progress = transfer_progress
+
+    def set_finished(self, success: bool = True) -> None:
+        """Mark trackers as finished.
+
+        Args:
+            success (bool): Whether installation was successful.
+
+        """
+        self._finished = True
+        self._success = success
 
 
 class _OIIOArgs:
@@ -455,7 +569,7 @@ def _get_downloaded_ffmpeg_root(
     return _FFmpegArgs.downloaded_root
 
 
-def get_downloaded_oiio_root(
+def _get_downloaded_oiio_root(
     server_files_info: Optional[dict[str, Any]] = None
 ) -> Optional[str]:
     if _OIIOArgs.downloaded_root is NOT_SET:
@@ -468,7 +582,14 @@ def get_downloaded_oiio_root(
 def _fill_ffmpeg_tool_args(
     tool_name: "FFmpegToolname",
     addon_settings: Optional[dict[str, Any]] = None,
+    tracker: InstallTracker | None = None,
 ) -> Optional[list[str]]:
+    args = _FFmpegArgs.tools.get(tool_name, NOT_SET)
+    if args is not NOT_SET:
+        if tracker is not None:
+            tracker.set_finished(success=args is not None)
+        return args
+
     if tool_name not in _FFmpegArgs.tools:
         joined_tools = ", ".join([f"'{t}'" for t in _FFmpegArgs.tools])
         raise ValueError(
@@ -482,19 +603,27 @@ def _fill_ffmpeg_tool_args(
     if addon_settings is None:
         addon_settings = get_addon_settings()
 
+    if tracker is None:
+        tracker = InstallTracker("FFmpeg")
+
+    tracker.set_started()
     ffmpeg_settings = addon_settings["ffmpeg"]
     for item in ffmpeg_settings[PLATFORM_NAME]:
+        tracker.set_transfer_progress(None)
         receive_type = item["receive_type"]
         if receive_type == "custom_args":
             custom_args = list(ffmpeg_settings["custom_args"][tool_name])
             if not validate_ffmpeg_args(custom_args):
                 continue
+            tracker.set_finished()
             _FFmpegArgs.tools[tool_name] = custom_args
             return custom_args
 
         if receive_type == "download":
             if is_ffmpeg_download_needed(addon_settings):
-                download_ffmpeg()
+                progress = TransferProgress()
+                tracker.set_transfer_progress(progress)
+                _download_ffmpeg(progress)
 
             path_parts = [_get_downloaded_ffmpeg_root()]
             if PLATFORM_NAME == "windows":
@@ -506,6 +635,7 @@ def _fill_ffmpeg_tool_args(
             ]
             if not validate_ffmpeg_args(args):
                 continue
+            tracker.set_finished()
             _FFmpegArgs.tools[tool_name] = args
             return args
 
@@ -524,6 +654,7 @@ def _fill_ffmpeg_tool_args(
             if not validate_ffmpeg_args(args):
                 continue
 
+            tracker.set_finished()
             _FFmpegArgs.tools[tool_name] = args
             return args
 
@@ -532,10 +663,11 @@ def _fill_ffmpeg_tool_args(
             if tool_path:
                 args = [tool_path]
                 if validate_ffmpeg_args(args):
+                    tracker.set_finished()
                     _FFmpegArgs.tools[tool_name] = args
                     return args
 
-
+    tracker.set_finished(success=False)
     final_args = None
     _FFmpegArgs.tools[tool_name] = final_args
     return final_args
@@ -544,66 +676,95 @@ def _fill_ffmpeg_tool_args(
 def _fill_oiio_tool_args(
     tool_name: "OIIOToolName",
     addon_settings: Optional[dict[str, Any]] = None,
+    tracker: InstallTracker | None = None,
 ) -> Optional[list[str]]:
+    args = _OIIOArgs.tools.get(tool_name, NOT_SET)
+    if args is not NOT_SET:
+        if tracker is not None:
+            tracker.set_finished(success=args is not None)
+        return args
+
     if tool_name not in _OIIOArgs.tools:
         joined_tools = ", ".join([f"'{t}'" for t in _OIIOArgs.tools])
         raise ValueError(
             f"Invalid tool name '{tool_name}'. Expected {joined_tools}"
         )
 
+    if tracker is None:
+        tracker = InstallTracker("OpenImageIO")
+
     if addon_settings is None:
         addon_settings = get_addon_settings()
 
-    platform_name = platform.system().lower()
+    tool_filename = tool_name
+    if PLATFORM_NAME == "windows":
+        tool_filename = f"{tool_name}.exe"
+
+    tracker.set_started()
+
     oiio_settings = addon_settings["oiio"]
-    if oiio_settings["use_downloaded"]:
-        if is_oiio_download_needed(addon_settings):
-            download_oiio()
+    for item in oiio_settings[PLATFORM_NAME]:
+        tracker.set_transfer_progress(None)
 
-        path_parts = [get_downloaded_oiio_root()]
-        path_parts.append("bin")
-        if platform_name == "windows":
-            tool_name = f"{tool_name}.exe"
-        path_parts.append(tool_name)
-
-        args = [
-            os.path.sep.join(path_parts)
-        ]
-        if not validate_oiio_args(args):
-            args = None
-        _OIIOArgs.tools[tool_name] = args
-        return args
-
-    for custom_args in oiio_settings["custom_args"][tool_name]:
-        if custom_args and validate_oiio_args(custom_args):
+        receive_type = item["receive_type"]
+        if receive_type == "custom_args":
+            custom_args = list(oiio_settings["custom_args"][tool_name])
+            if not validate_oiio_args(custom_args):
+                continue
+            tracker.set_finished()
             _OIIOArgs.tools[tool_name] = custom_args
             return custom_args
 
-    custom_roots = list(
-        oiio_settings
-        ["custom_roots"]
-        [platform_name]
-    )
-    filtered_roots = []
-    format_data = dict(os.environ.items())
-    for root in custom_roots:
-        if not root:
-            continue
-        try:
-            root = root.format(**format_data)
-        except (ValueError, KeyError):
-            print(f"Failed to format root '{root}'")
+        if receive_type == "custom_root":
+            custom_root = item["custom_root"]
+            try:
+                custom_root = custom_root.format_map(os.environ)
+            except (ValueError, KeyError):
+                print(f"Failed to format custom root '{custom_root}'")
+                continue
 
-        if os.path.exists(root):
-            filtered_roots.append(root)
+            tool_path = tool_name
+            if custom_root:
+                tool_path = os.path.join(custom_root, tool_path)
+            args = [tool_path]
+            if not validate_oiio_args(args):
+                continue
 
+            tracker.set_finished()
+            _OIIOArgs.tools[tool_name] = args
+            return args
+
+        if receive_type == "download":
+            if is_oiio_download_needed(addon_settings):
+                progress = TransferProgress()
+                tracker.set_transfer_progress(progress)
+                _download_oiio(progress)
+
+            path_parts = [_get_downloaded_oiio_root()]
+            if PLATFORM_NAME == "windows":
+                path_parts.append("bin")
+            path_parts.append(tool_filename)
+
+            args = [
+                os.path.sep.join(path_parts)
+            ]
+            if not validate_oiio_args(args):
+                continue
+            tracker.set_finished()
+            _OIIOArgs.tools[tool_name] = args
+            return args
+
+        if receive_type == "homebrew":
+            tool_path = _homebrew_get_tool_path("openimageio", tool_filename)
+            if tool_path:
+                args = [tool_path]
+                if validate_oiio_args(args):
+                    tracker.set_finished()
+                    _OIIOArgs.tools[tool_name] = args
+                    return args
+
+    tracker.set_finished(success=False)
     final_args = None
-    for root in filtered_roots:
-        tool_path = os.path.join(root, tool_name)
-        args = [tool_path]
-        if validate_oiio_args(args):
-            final_args = args
-            break
     _OIIOArgs.tools[tool_name] = final_args
     return final_args
 
@@ -624,8 +785,38 @@ def is_ffmpeg_download_needed(
         addon_settings = get_addon_settings()
     ffmpeg_settings = addon_settings["ffmpeg"]
     download_needed = False
+    tool_name = tool_filename = "ffmpeg"
+    if PLATFORM_NAME == "windows":
+        tool_filename = "ffmpeg.exe"
+
     for item in ffmpeg_settings[PLATFORM_NAME]:
-        if item["download"]:
+        receive_type = item["receive_type"]
+        if receive_type == "custom_args":
+            custom_args = list(ffmpeg_settings["custom_args"][tool_name])
+            if not validate_ffmpeg_args(custom_args):
+                continue
+            _FFmpegArgs.tools[tool_name] = custom_args
+            break
+
+        if receive_type == "custom_root":
+            custom_root = item["custom_root"]
+            try:
+                custom_root = custom_root.format_map(os.environ)
+            except (ValueError, KeyError):
+                print(f"Failed to format custom root '{custom_root}'")
+                continue
+
+            tool_path = tool_filename
+            if custom_root:
+                tool_path = os.path.join(custom_root, tool_path)
+            args = [tool_path]
+            if not validate_ffmpeg_args(args):
+                continue
+
+            _FFmpegArgs.tools[tool_name] = args
+            break
+
+        if receive_type == "download":
             # Check what is required by server
             ffmpeg_root = _get_downloaded_ffmpeg_root()
             progress_info = {}
@@ -635,6 +826,24 @@ def is_ffmpeg_download_needed(
                 )
                 progress_info = _read_progress_file(progress_path)
             download_needed = progress_info.get("state") != "done"
+            break
+
+        if receive_type == "homebrew":
+            tool_path = _homebrew_get_tool_path("ffmpeg", tool_filename)
+            if not tool_path:
+                download_needed = True
+            break
+
+        if receive_type == "winget":
+            tool_path = _winget_get_ffmpeg_path(
+                WINGET_FFMPEG_PACKAGE, tool_filename
+            )
+            if (
+                not tool_path
+                or not os.path.exists(tool_path)
+            ):
+                download_needed = True
+            break
 
     _FFmpegArgs.download_needed = download_needed
     return _FFmpegArgs.download_needed
@@ -654,18 +863,59 @@ def is_oiio_download_needed(
 
     if addon_settings is None:
         addon_settings = get_addon_settings()
+
     oiio_settings = addon_settings["oiio"]
 
+    tool_name = tool_filename = "oiiotool"
+    if PLATFORM_NAME == "windows":
+        tool_filename = "oiiotool.exe"
+
     download_needed = False
-    if oiio_settings["use_downloaded"]:
-        oiio_root = get_downloaded_oiio_root()
-        progress_info = {}
-        if oiio_root:
-            progress_path = os.path.join(
-                oiio_root, DIST_PROGRESS_FILENAME
-            )
-            progress_info = _read_progress_file(progress_path)
-        download_needed = progress_info.get("state") != "done"
+    for item in oiio_settings[PLATFORM_NAME]:
+        receive_type = item["receive_type"]
+        if receive_type == "custom_args":
+            custom_args = list(oiio_settings["custom_args"][tool_name])
+            if not validate_oiio_args(custom_args):
+                continue
+            _OIIOArgs.tools[tool_name] = custom_args
+            break
+
+        if receive_type == "custom_root":
+            custom_root = item["custom_root"]
+            try:
+                custom_root = custom_root.format_map(os.environ)
+            except (ValueError, KeyError):
+                print(f"Failed to format custom root '{custom_root}'")
+                continue
+
+            tool_path = tool_name
+            if custom_root:
+                tool_path = os.path.join(custom_root, tool_path)
+            args = [tool_path]
+            if not validate_oiio_args(args):
+                continue
+
+            _OIIOArgs.tools[tool_name] = args
+            break
+
+        if receive_type == "download":
+            # Check what is required by server
+            ffmpeg_root = _get_downloaded_oiio_root()
+            progress_info = {}
+            if ffmpeg_root:
+                progress_path = os.path.join(
+                    ffmpeg_root, DIST_PROGRESS_FILENAME
+                )
+                progress_info = _read_progress_file(progress_path)
+            download_needed = progress_info.get("state") != "done"
+            break
+
+        if receive_type == "homebrew":
+            tool_path = _homebrew_get_tool_path("openimageio", tool_filename)
+            if not tool_path or not validate_ffmpeg_args([tool_path]):
+                download_needed = True
+            break
+
     _OIIOArgs.download_needed = download_needed
     return _OIIOArgs.download_needed
 
@@ -824,7 +1074,7 @@ def _download_file(
     return True
 
 
-def download_ffmpeg(
+def _download_ffmpeg(
     progress: Optional[TransferProgress] = None,
 ):
     """Download ffmpeg from server.
@@ -854,7 +1104,7 @@ def download_ffmpeg(
     _FFmpegArgs.downloaded_root = NOT_SET
 
 
-def download_oiio(progress: Optional[TransferProgress] = None):
+def _download_oiio(progress: Optional[TransferProgress] = None):
     files_info = get_server_files_info()
     file_info = _find_file_info("oiio", files_info)
     if file_info is None:
@@ -862,13 +1112,37 @@ def download_oiio(progress: Optional[TransferProgress] = None):
             "Couldn't find OpenImageIO source file for platform '{}'"
         ).format(platform.system()))
 
-    dirpath = get_downloaded_oiio_root()
+    dirpath = _get_downloaded_oiio_root()
     log.debug("Downloading OIIO into: '%s'", dirpath)
     if not _download_file(file_info, dirpath, progress=progress):
         log.debug("Other processed already downloaded and extracted OIIO.")
 
     _OIIOArgs.download_needed = False
     _OIIOArgs.downloaded_root = NOT_SET
+
+
+def install_ffmpeg(
+    tracker: InstallTracker | None = None,
+    addon_settings: dict[str, Any] | None = None,
+) -> None:
+    """Install OpenImageIO."""
+    _fill_ffmpeg_tool_args(
+        "ffmpeg",
+        tracker=tracker,
+        addon_settings=addon_settings,
+    )
+
+
+def install_oiio(
+    tracker: InstallTracker | None = None,
+    addon_settings: dict[str, Any] | None = None,
+) -> None:
+    """Install OpenImageIO."""
+    _fill_oiio_tool_args(
+        "oiiotool",
+        tracker=tracker,
+        addon_settings=addon_settings,
+    )
 
 
 def get_ffmpeg_arguments(
