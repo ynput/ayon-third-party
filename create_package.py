@@ -57,9 +57,9 @@ FFMPEG_SOURCES = {
         "checksum_algorithm": "sha256",
     },
     "darwin": {
-        "url": f"{DISTRIBUTE_SOURCE_URL}/ffmpeg-7.1-macos-intel.tar.xz",
+        "url": f"{DISTRIBUTE_SOURCE_URL}/ffmpeg-7.1-macos-arm.tar.xz",
         "checksum": (
-            "4ed7a974a77ff2766f1e4e6abf08de351c9ce41b594def5c8ba4da315c5ce655"
+            "e55e82b6908d64b57d216edabeff1255a05b1c59516b538f49d071cbdc8e56e1"
         ),
         "checksum_algorithm": "sha256",
     }
