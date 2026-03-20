@@ -35,6 +35,7 @@ import zipfile
 import subprocess
 import hashlib
 import urllib.request
+from pathlib import Path
 from typing import Optional, Iterable, Pattern, Union, List, Tuple
 
 import package
