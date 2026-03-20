@@ -44,6 +44,8 @@ DIST_PROGRESS_FILENAME = "dist_progress.json"
 DOWNLOAD_WAIT_TRESHOLD_TIME = 20
 EXTRACT_WAIT_TRESHOLD_TIME = 20
 
+WINGET_FFMPEG_PACKAGE = "BtbN.FFmpeg.LGPL.7.1"
+
 log = Logger.get_logger(__name__)
 
 
@@ -506,6 +508,86 @@ def _homebrew_install(package_name: str, tool_name: str) -> Optional[str]:
     return _homebrew_get_tool_path(package_name, tool_name)
 
 
+def _winget_get_ffmpeg_path(
+    package_id: str,
+    tool_filename: str,
+) -> Optional[str]:
+    """Find path to tool installed via winget.
+
+    Args:
+        package_id (str): WinGet package ID.
+
+    Returns:
+        Optional[str]: Path to tool if found.
+
+    """
+    packages_dirs: list[Path] = []
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    if local_app_data:
+        path = Path(local_app_data) / "Microsoft" / "WinGet" / "Packages"
+        if path.is_dir():
+            packages_dirs.append(path)
+
+    program_files = os.environ.get("ProgramFiles")
+    if program_files:
+        path = Path(program_files) / "WinGet"/ "Packages"
+        if path.is_dir():
+            packages_dirs.append(path)
+
+    if not packages_dirs:
+        return None
+
+    filtered_dirs = []
+    for packages_dir in packages_dirs:
+        for package_dir in packages_dir.iterdir():
+            if (
+                package_dir.is_dir()
+                and package_id in package_dir.name
+            ):
+                filtered_dirs.append(package_dir)
+
+    for package_dir in filtered_dirs:
+        for subdir in package_dir.iterdir():
+            subdir /= "bin"
+            if not subdir.is_dir():
+                continue
+
+            for subfile in subdir.iterdir():
+                if subfile.is_file() and subfile.name == "ffmpeg.exe":
+                    return str(subdir.absolute() / tool_filename)
+    return None
+
+
+def _winget_install_ffmpeg() -> Optional[str]:
+    """Install ffmpeg using winget.
+
+    Returns:
+        Optional[str]: Path to tool if installed.
+
+    """
+    if PLATFORM_NAME != "windows":
+        return None
+
+    # Check if already installed via winget
+    tool_path = _winget_get_ffmpeg_path(WINGET_FFMPEG_PACKAGE, "ffmpeg.exe")
+    if tool_path:
+        return os.path.dirname(tool_path)
+
+    try:
+        subprocess.check_call([
+            "winget", "install",
+            "-e", "--id", WINGET_FFMPEG_PACKAGE
+        ])
+    except subprocess.CalledProcessError:
+        log.error(f"Failed to install 'ffmpeg' using winget.")
+        return None
+
+    tool_path = _winget_get_ffmpeg_path(WINGET_FFMPEG_PACKAGE, "ffmpeg.exe")
+    if tool_path:
+        return os.path.dirname(tool_path)
+    return None
+
+
 def _get_resources_dir(*args) -> str:
     return get_addons_resources_dir(ADDON_NAME, *args)
 
@@ -660,6 +742,18 @@ def _fill_ffmpeg_tool_args(
 
         if receive_type == "homebrew":
             tool_path = _homebrew_get_tool_path("ffmpeg", tool_filename)
+            if tool_path:
+                args = [tool_path]
+                if validate_ffmpeg_args(args):
+                    tracker.set_finished()
+                    _FFmpegArgs.tools[tool_name] = args
+                    return args
+
+        if receive_type == "winget":
+            _winget_install_ffmpeg()
+            tool_path = _winget_get_ffmpeg_path(
+                WINGET_FFMPEG_PACKAGE, tool_filename
+            )
             if tool_path:
                 args = [tool_path]
                 if validate_ffmpeg_args(args):
