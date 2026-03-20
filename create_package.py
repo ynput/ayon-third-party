@@ -79,15 +79,6 @@ OIIO_SOURCES = {
         ),
         "checksum_algorithm": "sha256",
     },
-    "darwin": {
-        "url": (
-            f"{DISTRIBUTE_SOURCE_URL}/openimageio-v3.0.6.1-macos_x86_64.tgz"
-        ),
-        "checksum": (
-            "cf588fadebfb1771b9c101b4352af3236309b5c8457f2c59c7fc116cb77cfa11"
-        ),
-        "checksum_algorithm": "sha256",
-    }
 }
 
 FileMapping = Tuple[Union[str, io.BytesIO], str]
