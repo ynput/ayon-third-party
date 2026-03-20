@@ -498,7 +498,7 @@ def _homebrew_install(package_name: str, tool_name: str) -> Optional[str]:
     if not tool_path:
         return None
 
-    log.info(f"Installing 'ffmpeg' using homebrew.")
+    log.info("Installing 'ffmpeg' using homebrew.")
     try:
         subprocess.check_call(["brew", "install", package_name])
     except subprocess.CalledProcessError:
@@ -530,7 +530,7 @@ def _winget_get_ffmpeg_path(
 
     program_files = os.environ.get("ProgramFiles")
     if program_files:
-        path = Path(program_files) / "WinGet"/ "Packages"
+        path = Path(program_files) / "WinGet" / "Packages"
         if path.is_dir():
             packages_dirs.append(path)
 
@@ -579,7 +579,7 @@ def _winget_install_ffmpeg() -> Optional[str]:
             "-e", "--id", WINGET_FFMPEG_PACKAGE
         ])
     except subprocess.CalledProcessError:
-        log.error(f"Failed to install 'ffmpeg' using winget.")
+        log.error("Failed to install 'ffmpeg' using winget.")
         return None
 
     tool_path = _winget_get_ffmpeg_path(WINGET_FFMPEG_PACKAGE, "ffmpeg.exe")

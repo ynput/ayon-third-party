@@ -63,7 +63,6 @@ class FFmpegWindowsModel(BaseSettingsModel):
     )
 
 
-
 class FFmpegLinuxModel(BaseSettingsModel):
     _layout = "compact"
     receive_type: str = SettingsField(

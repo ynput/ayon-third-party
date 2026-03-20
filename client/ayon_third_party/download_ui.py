@@ -10,8 +10,6 @@ from dataclasses import dataclass
 
 from qtpy import QtWidgets, QtCore
 
-from ayon_api import TransferProgress
-
 from ayon_core import style
 
 from .utils import (
@@ -363,6 +361,7 @@ ProgressBarAYFFOIIO::chunk {
     border-radius: 6px;
 }
 """
+
 
 def _get_stylesheets():
     stylesheets = style.load_stylesheet()

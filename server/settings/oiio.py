@@ -81,7 +81,6 @@ class OIIOWindowsModel(BaseSettingsModel):
     )
 
 
-
 class OIIOLinuxModel(BaseSettingsModel):
     _layout = "compact"
     receive_type: str = SettingsField(
