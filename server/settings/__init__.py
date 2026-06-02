@@ -1,3 +1,5 @@
+from .conversions import convert_settings_overrides
+
 from .main import (
     ThirdPartySettings,
     DEFAULT_SETTINGS,
@@ -5,6 +7,8 @@ from .main import (
 
 
 __all__ = (
+    "convert_settings_overrides",
+
     "ThirdPartySettings",
     "DEFAULT_SETTINGS",
 )
