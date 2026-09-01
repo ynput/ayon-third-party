@@ -495,8 +495,8 @@ def _homebrew_install(package_name: str, tool_name: str) -> str | None:
         return None
 
     tool_path = _homebrew_get_tool_path(package_name, tool_name)
-    if not tool_path:
-        return None
+    if tool_path:
+        return tool_path
 
     log.info("Installing 'ffmpeg' using homebrew.")
     try:
