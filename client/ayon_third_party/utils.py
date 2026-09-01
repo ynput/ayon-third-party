@@ -15,7 +15,7 @@ import tempfile
 import time
 import uuid
 from pathlib import Path
-from typing import Optional, Any
+from typing import Any
 
 import ayon_api
 from ayon_api import TransferProgress
@@ -277,14 +277,14 @@ def validate_file_checksum(
 
 def get_archive_ext_and_type(
     archive_file: str
-) -> tuple[Optional[str], Optional[str]]:
+) -> tuple[str | None, str | None]:
     """Get archive extension and type.
 
     Args:
         archive_file (str): Path to archive file.
 
     Returns:
-        tuple[Optional[str], Optional[str]]: Archive extension and type.
+        tuple[str | None, str | None]: Archive extension and type.
 
     """
     tmp_name = archive_file.lower()
@@ -306,13 +306,13 @@ def get_archive_ext_and_type(
 
 def extract_archive_file(
     archive_file: str,
-    dst_folder: Optional[str] = None,
-):
+    dst_folder: str | None = None,
+) -> None:
     """Extract archived file to a directory.
 
     Args:
         archive_file (str): Path to a archive file.
-        dst_folder (Optional[str]): Directory where content will be extracted.
+        dst_folder (str | None): Directory where content will be extracted.
             By default, same folder where archive file is.
 
     """
@@ -355,7 +355,7 @@ def extract_archive_file(
         tar_file.close()
 
 
-def get_addon_settings():
+def get_addon_settings() -> dict[str, Any]:
     if not _ThirdPartyCache.addon_settings.is_valid:
         _ThirdPartyCache.addon_settings.update_data(
             ayon_api.get_addon_settings(
@@ -369,7 +369,7 @@ def _get_addon_endpoint() -> str:
     return f"addons/{ADDON_NAME}/{__version__}"
 
 
-def get_server_files_info() -> list["ToolDownloadInfo"]:
+def get_server_files_info() -> list[ToolDownloadInfo]:
     """Receive zip file info from server.
 
     Information must contain at least 'filename' and 'hash' with md5 zip
@@ -388,7 +388,7 @@ def get_server_files_info() -> list["ToolDownloadInfo"]:
     return copy.deepcopy(_ThirdPartyCache.server_files_info)
 
 
-def _makedirs(path: str):
+def _makedirs(path: str) -> None:
     """Create directory if not exists.
 
     Do not execute 'os.makedirs' if directory already exists, to avoid
@@ -464,7 +464,7 @@ def validate_oiio_args(args: list[str]) -> bool:
 
 def _homebrew_get_tool_path(
     package_name: str, tool_name: str
-) -> Optional[str]:
+) -> str | None:
     try:
         brew_prefix = subprocess.check_output(
             ["brew", "--prefix", package_name],
@@ -481,14 +481,14 @@ def _homebrew_get_tool_path(
     return None
 
 
-def _homebrew_install(package_name: str, tool_name: str) -> Optional[str]:
+def _homebrew_install(package_name: str, tool_name: str) -> str | None:
     """Install tool using homebrew.
 
     This function does not validate the installed version. It could use very
         old or very new version of ffmpeg.
 
     Returns:
-        Optional[str]: Path to tool if installed.
+        str | None: Path to tool if installed.
 
     """
     if PLATFORM_NAME != "darwin":
@@ -511,14 +511,14 @@ def _homebrew_install(package_name: str, tool_name: str) -> Optional[str]:
 def _winget_get_ffmpeg_path(
     package_id: str,
     tool_filename: str,
-) -> Optional[str]:
+) -> str | None:
     """Find path to tool installed via winget.
 
     Args:
         package_id (str): WinGet package ID.
 
     Returns:
-        Optional[str]: Path to tool if found.
+        str | None: Path to tool if found.
 
     """
     packages_dirs: list[Path] = []
@@ -558,11 +558,11 @@ def _winget_get_ffmpeg_path(
     return None
 
 
-def _winget_install_ffmpeg() -> Optional[str]:
+def _winget_install_ffmpeg() -> str | None:
     """Install ffmpeg using winget.
 
     Returns:
-        Optional[str]: Path to tool if installed.
+        str | None: Path to tool if installed.
 
     """
     if PLATFORM_NAME != "windows":
@@ -601,8 +601,8 @@ def _read_progress_file(progress_path: str):
 
 
 def _find_file_info(
-    name: str, files_info: list["ToolDownloadInfo"]
-) -> Optional["ToolDownloadInfo"]:
+    name: str, files_info: list[ToolDownloadInfo]
+) -> ToolDownloadInfo | None:
     """Find file info by name.
 
     Args:
@@ -610,7 +610,7 @@ def _find_file_info(
         files_info (list[ToolDownloadInfo]): List of file info dicts.
 
     Returns:
-        Optional[ToolDownloadInfo]: File info data.
+        ToolDownloadInfo | None: File info data.
 
     """
     return next(
@@ -628,8 +628,8 @@ def _find_file_info(
 
 def _get_tool_resource_dir(
     tool_name: str,
-    server_files_info=None,
-):
+    server_files_info: list[ToolDownloadInfo] | None = None,
+) -> str | None:
     if server_files_info is None:
         server_files_info = get_server_files_info()
     server_info = _find_file_info(tool_name, server_files_info)
@@ -642,8 +642,8 @@ def _get_tool_resource_dir(
 
 
 def _get_downloaded_ffmpeg_root(
-    server_files_info: Optional[dict[str, Any]] = None
-) -> Optional[str]:
+    server_files_info: list[ToolDownloadInfo] | None = None,
+) -> str | None:
     if _FFmpegArgs.downloaded_root is NOT_SET:
         _FFmpegArgs.downloaded_root = _get_tool_resource_dir(
             "ffmpeg", server_files_info
@@ -652,8 +652,8 @@ def _get_downloaded_ffmpeg_root(
 
 
 def _get_downloaded_oiio_root(
-    server_files_info: Optional[dict[str, Any]] = None
-) -> Optional[str]:
+    server_files_info: list[ToolDownloadInfo] | None = None,
+) -> str | None:
     if _OIIOArgs.downloaded_root is NOT_SET:
         _OIIOArgs.downloaded_root = _get_tool_resource_dir(
             "oiio", server_files_info
@@ -662,10 +662,10 @@ def _get_downloaded_oiio_root(
 
 
 def _fill_ffmpeg_tool_args(
-    tool_name: "FFmpegToolname",
-    addon_settings: Optional[dict[str, Any]] = None,
+    tool_name: FFmpegToolname,
+    addon_settings: dict[str, Any] | None = None,
     tracker: InstallTracker | None = None,
-) -> Optional[list[str]]:
+) -> list[str] | None:
     args = _FFmpegArgs.tools.get(tool_name, NOT_SET)
     if args is not NOT_SET:
         if tracker is not None:
@@ -768,10 +768,10 @@ def _fill_ffmpeg_tool_args(
 
 
 def _fill_oiio_tool_args(
-    tool_name: "OIIOToolName",
-    addon_settings: Optional[dict[str, Any]] = None,
+    tool_name: OIIOToolName,
+    addon_settings: dict[str, Any] | None = None,
     tracker: InstallTracker | None = None,
-) -> Optional[list[str]]:
+) -> list[str] | None:
     args = _OIIOArgs.tools.get(tool_name, NOT_SET)
     if args is not NOT_SET:
         if tracker is not None:
@@ -864,7 +864,7 @@ def _fill_oiio_tool_args(
 
 
 def is_ffmpeg_download_needed(
-    addon_settings: Optional[dict[str, Any]] = None
+    addon_settings: dict[str, Any] | None = None,
 ) -> bool:
     """Check if is download needed.
 
@@ -944,7 +944,7 @@ def is_ffmpeg_download_needed(
 
 
 def is_oiio_download_needed(
-    addon_settings: Optional[dict[str, Any]] = None
+    addon_settings: dict[str, Any] | None = None,
 ) -> bool:
     """Check if is download needed.
 
@@ -1014,7 +1014,7 @@ def is_oiio_download_needed(
     return _OIIOArgs.download_needed
 
 
-def _wait_for_other_process(progress_path: str, progress_id: str):
+def _wait_for_other_process(progress_path: str, progress_id: str) -> bool:
     dirpath = os.path.dirname(progress_path)
     started = time.time()
     progress_existed = False
@@ -1081,9 +1081,9 @@ def _wait_for_other_process(progress_path: str, progress_id: str):
 
 
 def _download_file(
-    file_info: "ToolDownloadInfo",
+    file_info: ToolDownloadInfo,
     dirpath: str,
-    progress: Optional[TransferProgress] = None,
+    progress: TransferProgress | None = None,
 ) -> bool:
     filename = file_info["filename"]
     checksum = file_info["checksum"]
@@ -1169,8 +1169,8 @@ def _download_file(
 
 
 def _download_ffmpeg(
-    progress: Optional[TransferProgress] = None,
-):
+    progress: TransferProgress | None = None,
+) -> None:
     """Download ffmpeg from server.
 
     Todos:
@@ -1198,7 +1198,7 @@ def _download_ffmpeg(
     _FFmpegArgs.downloaded_root = NOT_SET
 
 
-def _download_oiio(progress: Optional[TransferProgress] = None):
+def _download_oiio(progress: TransferProgress | None = None) -> None:
     files_info = get_server_files_info()
     file_info = _find_file_info("oiio", files_info)
     if file_info is None:
@@ -1240,8 +1240,8 @@ def install_oiio(
 
 
 def get_ffmpeg_arguments(
-    tool_name: "FFmpegToolname" = "ffmpeg"
-) -> Optional[list[str]]:
+    tool_name: FFmpegToolname = "ffmpeg"
+) -> list[str] | None:
     """Get arguments to run one of ffmpeg tools.
 
     Args:
@@ -1259,8 +1259,8 @@ def get_ffmpeg_arguments(
 
 
 def get_oiio_arguments(
-    tool_name: "OIIOToolName" = "oiiotool"
-) -> Optional[list[str]]:
+    tool_name: OIIOToolName = "oiiotool"
+) -> list[str] | None:
     """Get arguments to run one of OpenImageIO tools.
 
     Possible OIIO tools:
