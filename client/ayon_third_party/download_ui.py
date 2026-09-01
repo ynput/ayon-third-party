@@ -5,7 +5,7 @@ import uuid
 import threading
 import traceback
 from functools import partial
-from typing import Optional, Callable
+from typing import Callable
 from dataclasses import dataclass
 
 from qtpy import QtWidgets, QtCore
@@ -22,7 +22,7 @@ from .utils import (
 @dataclass
 class ErrorInfo:
     message: str
-    detail: Optional[str]
+    detail: str | None
 
 
 class InstallItem:
@@ -31,7 +31,7 @@ class InstallItem:
         self._func = partial(func, tracker)
         self._tracker = tracker
         self._thread = None
-        self._error: Optional[ErrorInfo] = None
+        self._error: ErrorInfo | None = None
 
     @property
     def id(self) -> str:
@@ -46,7 +46,7 @@ class InstallItem:
         return self._error is not None
 
     @property
-    def error(self) -> Optional[ErrorInfo]:
+    def error(self) -> ErrorInfo | None:
         return self._error
 
     @property
@@ -233,7 +233,7 @@ class DownloadWindow(QtWidgets.QWidget):
     def __init__(
         self,
         controller: DownloadController,
-        parent: Optional[QtWidgets.QWidget] = None,
+        parent: QtWidgets.QWidget | None = None,
     ):
         super().__init__(parent=parent)
 
@@ -317,7 +317,7 @@ class DownloadWindow(QtWidgets.QWidget):
 def show_download_window(
     ffmpeg: bool,
     oiio: bool,
-    parent: Optional[QtWidgets.QWidget] = None,
+    parent: QtWidgets.QWidget | None = None,
 ) -> DownloadWindow:
     controller = DownloadController(ffmpeg, oiio)
     window = DownloadWindow(controller, parent=parent)
