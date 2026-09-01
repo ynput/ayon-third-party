@@ -834,13 +834,12 @@ def _fill_oiio_tool_args(
                 tracker.set_transfer_progress(progress)
                 _download_oiio(progress)
 
-            path_parts = [_get_downloaded_oiio_root()]
-            if PLATFORM_NAME == "windows":
-                path_parts.append("bin")
-            path_parts.append(tool_filename)
-
             args = [
-                os.path.sep.join(path_parts)
+                os.path.sep.join(
+                    _get_downloaded_oiio_root(),
+                    "bin",
+                    tool_filename
+                )
             ]
             if not validate_oiio_args(args):
                 continue
