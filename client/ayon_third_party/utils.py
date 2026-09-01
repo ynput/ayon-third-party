@@ -1218,7 +1218,7 @@ def install_ffmpeg(
     tracker: InstallTracker | None = None,
     addon_settings: dict[str, Any] | None = None,
 ) -> None:
-    """Install OpenImageIO."""
+    """Install FFmpeg."""
     _fill_ffmpeg_tool_args(
         "ffmpeg",
         tracker=tracker,
@@ -1248,7 +1248,7 @@ def get_ffmpeg_arguments(
             tool for which arguments should be returned.
 
     Returns:
-        list[str]: Path to OpenImageIO directory.
+        list[str]: Path to FFmpeg directory.
 
     """
     args = _FFmpegArgs.tools.get(tool_name, NOT_SET)
