@@ -88,6 +88,9 @@ class InstallItem:
             )
 
     def install(self):
+        if self._tracker.get_finished():
+            return
+
         if self._thread is None:
             self._thread = threading.Thread(target=self._start)
             self._thread.start()

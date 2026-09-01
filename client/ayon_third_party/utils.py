@@ -126,13 +126,13 @@ class InstallTracker:
             str: Label of current state of installation.
 
         """
-        if not self._started:
-            return "Starting..."
-
         if self._finished:
             if self._success:
                 return "Installed"
             return "Failed!"
+
+        if not self._started:
+            return "Starting..."
 
         if self._transfer_progress is None:
             return "Installing..."
