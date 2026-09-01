@@ -729,7 +729,7 @@ def _fill_ffmpeg_tool_args(
                 print(f"Failed to format custom root '{custom_root}'")
                 continue
 
-            tool_path = tool_name
+            tool_path = tool_filename
             if custom_root:
                 tool_path = os.path.join(custom_root, tool_path)
             args = [tool_path]
