@@ -694,7 +694,7 @@ def _fill_ffmpeg_tool_args(
         tracker.set_transfer_progress(None)
         receive_type = item["receive_type"]
         if receive_type == "custom_args":
-            custom_args = list(ffmpeg_settings["custom_args"][tool_name])
+            custom_args = list(item["custom_args"][tool_name])
             if not validate_ffmpeg_args(custom_args):
                 continue
             tracker.set_finished()
@@ -886,7 +886,7 @@ def is_ffmpeg_download_needed(
     for item in ffmpeg_settings[PLATFORM_NAME]:
         receive_type = item["receive_type"]
         if receive_type == "custom_args":
-            custom_args = list(ffmpeg_settings["custom_args"][tool_name])
+            custom_args = list(item["custom_args"][tool_name])
             if not validate_ffmpeg_args(custom_args):
                 continue
             _FFmpegArgs.tools[tool_name] = custom_args
