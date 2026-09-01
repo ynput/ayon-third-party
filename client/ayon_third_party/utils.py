@@ -1006,7 +1006,7 @@ def is_oiio_download_needed(
 
         if receive_type == "homebrew":
             tool_path = _homebrew_get_tool_path("openimageio", tool_filename)
-            if not tool_path or not validate_ffmpeg_args([tool_path]):
+            if not tool_path or not validate_oiio_args([tool_path]):
                 download_needed = True
             break
 
