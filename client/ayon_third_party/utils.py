@@ -498,7 +498,7 @@ def _homebrew_install(package_name: str, tool_name: str) -> str | None:
     if tool_path:
         return tool_path
 
-    log.info("Installing 'ffmpeg' using homebrew.")
+    log.info(f"Installing '{tool_name}' using homebrew.")
     try:
         subprocess.check_call(["brew", "install", package_name])
     except subprocess.CalledProcessError:
