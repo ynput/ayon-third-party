@@ -1,39 +1,38 @@
-from pydantic import Field
-
 from ayon_server.settings import (
     BaseSettingsModel,
     MultiplatformPathListModel,
+    SettingsField,
 )
 
 
 class CustomArgumentsItem(BaseSettingsModel):
     _layout = "expanded"
-    args: list[str] = Field(default_factory=list, title="Arguments")
+    args: list[str] = SettingsField(default_factory=list, title="Arguments")
 
 
 class CustomFFmpegArgumentsModel(BaseSettingsModel):
-    ffmpeg: list[CustomArgumentsItem] = Field(
+    ffmpeg: list[CustomArgumentsItem] = SettingsField(
         default_factory=list,
         title="Tool 'ffmpeg'"
     )
-    ffprobe: list[CustomArgumentsItem] = Field(
+    ffprobe: list[CustomArgumentsItem] = SettingsField(
         default_factory=list,
         title="Tool 'ffprobe'"
     )
 
 
 class FFmpegSettings(BaseSettingsModel):
-    use_downloaded: bool = Field(
+    use_downloaded: bool = SettingsField(
         default=True,
         title="Download ffmpeg from server",
         description="If disabled, one of custom options must be used",
     )
-    custom_roots: MultiplatformPathListModel = Field(
+    custom_roots: MultiplatformPathListModel = SettingsField(
         default_factory=MultiplatformPathListModel,
         title="Custom root",
         description="Root to directory where ffmpeg binaries can be found",
     )
-    custom_args: CustomFFmpegArgumentsModel = Field(
+    custom_args: CustomFFmpegArgumentsModel = SettingsField(
         default_factory=CustomFFmpegArgumentsModel,
         title="Custom arguments",
         description=(
@@ -43,50 +42,50 @@ class FFmpegSettings(BaseSettingsModel):
 
 
 class CustomOIIOArgumentsModel(BaseSettingsModel):
-    oiiotool: list[CustomArgumentsItem] = Field(
+    oiiotool: list[CustomArgumentsItem] = SettingsField(
         default_factory=list,
         title="*Tool 'oiiotool'"
     )
-    maketx: list[CustomArgumentsItem] = Field(
+    maketx: list[CustomArgumentsItem] = SettingsField(
         default_factory=list,
         title="*Tool 'maketx'"
     )
-    iv: list[CustomArgumentsItem] = Field(
+    iv: list[CustomArgumentsItem] = SettingsField(
         default_factory=list,
         title="Tool 'iv'"
     )
-    iinfo: list[CustomArgumentsItem] = Field(
+    iinfo: list[CustomArgumentsItem] = SettingsField(
         default_factory=list,
         title="Tool 'iinfo'"
     )
-    igrep: list[CustomArgumentsItem] = Field(
+    igrep: list[CustomArgumentsItem] = SettingsField(
         default_factory=list,
         title="Tool 'igrep'"
     )
-    idiff: list[CustomArgumentsItem] = Field(
+    idiff: list[CustomArgumentsItem] = SettingsField(
         default_factory=list,
         title="Tool 'idiff'"
     )
-    iconvert: list[CustomArgumentsItem] = Field(
+    iconvert: list[CustomArgumentsItem] = SettingsField(
         default_factory=list,
         title="Tool 'iconvert'"
     )
 
 
 class OIIOSettings(BaseSettingsModel):
-    use_downloaded: bool = Field(
+    use_downloaded: bool = SettingsField(
         default=True,
         title="Download OpenImageIO from server",
         description="If disabled, one of custom options must be used",
     )
-    custom_roots: MultiplatformPathListModel = Field(
+    custom_roots: MultiplatformPathListModel = SettingsField(
         default_factory=MultiplatformPathListModel,
         title="Custom root",
         description=(
             "Root to directory where OpenImageIO binaries can be found"
         ),
     )
-    custom_args: CustomOIIOArgumentsModel = Field(
+    custom_args: CustomOIIOArgumentsModel = SettingsField(
         default_factory=CustomOIIOArgumentsModel,
         title="Custom arguments",
         description=(
@@ -98,11 +97,11 @@ class OIIOSettings(BaseSettingsModel):
 class ThirdPartySettings(BaseSettingsModel):
     """Third party addon settings."""
 
-    ffmpeg: FFmpegSettings = Field(
+    ffmpeg: FFmpegSettings = SettingsField(
         default_factory=FFmpegSettings,
         title="FFmpeg",
     )
-    oiio: OIIOSettings = Field(
+    oiio: OIIOSettings = SettingsField(
         default_factory=OIIOSettings,
         title="OpenImageIO",
     )
