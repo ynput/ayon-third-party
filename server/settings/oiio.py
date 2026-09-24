@@ -62,7 +62,7 @@ def _openimageio_macos_enum():
 class OIIOWindowsModel(BaseSettingsModel):
     _layout = "compact"
     receive_type: str = SettingsField(
-        title="Receive type",
+        title="Source",
         enum_resolver=_openimageio_windows_enum,
         default="download",
         conditionalEnum=True,
@@ -84,7 +84,7 @@ class OIIOWindowsModel(BaseSettingsModel):
 class OIIOLinuxModel(BaseSettingsModel):
     _layout = "compact"
     receive_type: str = SettingsField(
-        title="Receive type",
+        title="Source",
         enum_resolver=_openimageio_linux_enum,
         default="download",
         conditionalEnum=True,
@@ -106,7 +106,7 @@ class OIIOLinuxModel(BaseSettingsModel):
 class OIIOMacOsModel(BaseSettingsModel):
     _layout = "compact"
     receive_type: str = SettingsField(
-        title="Receive type",
+        title="Source",
         enum_resolver=_openimageio_macos_enum,
         default="homebrew",
         conditionalEnum=True,

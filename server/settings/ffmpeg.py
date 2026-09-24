@@ -44,7 +44,7 @@ def _ffmpeg_macos_enum():
 class FFmpegWindowsModel(BaseSettingsModel):
     _layout = "compact"
     receive_type: str = SettingsField(
-        title="Receive type",
+        title="Source",
         enum_resolver=_ffmpeg_windows_enum,
         default="download",
         conditionalEnum=True,
@@ -66,7 +66,7 @@ class FFmpegWindowsModel(BaseSettingsModel):
 class FFmpegLinuxModel(BaseSettingsModel):
     _layout = "compact"
     receive_type: str = SettingsField(
-        title="Receive type",
+        title="Source",
         enum_resolver=_ffmpeg_linux_enum,
         default="download",
         conditionalEnum=True,
@@ -88,7 +88,7 @@ class FFmpegLinuxModel(BaseSettingsModel):
 class FFmpegMacOsModel(BaseSettingsModel):
     _layout = "compact"
     receive_type: str = SettingsField(
-        title="Receive type",
+        title="Source",
         enum_resolver=_ffmpeg_macos_enum,
         default="homebrew",
         conditionalEnum=True,
