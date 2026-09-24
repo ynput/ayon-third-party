@@ -35,7 +35,6 @@ class ThirdPartyDistAddon(BaseServerAddon):
             source_version, overrides
         )
 
-
     def initialize(self):
         self.add_endpoint(
             "files_info",
