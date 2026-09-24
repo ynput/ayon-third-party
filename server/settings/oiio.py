@@ -37,7 +37,7 @@ class CustomOIIOArgumentsModel(BaseSettingsModel):
 
 def _openimageio_windows_enum():
     return [
-        {"value": "download", "label": "Download from AYON server"},
+        {"value": "download", "label": "AYON server (3.0.6)"},
         {"value": "custom_root", "label": "Custom root"},
         {"value": "custom_args", "label": "Custom arguments"},
     ]
@@ -45,7 +45,7 @@ def _openimageio_windows_enum():
 
 def _openimageio_linux_enum():
     return [
-        {"value": "download", "label": "Download from AYON server"},
+        {"value": "download", "label": "AYON server (3.0.6)"},
         {"value": "custom_root", "label": "Custom root"},
         {"value": "custom_args", "label": "Custom arguments"},
     ]
@@ -53,7 +53,7 @@ def _openimageio_linux_enum():
 
 def _openimageio_macos_enum():
     return [
-        {"value": "homebrew", "label": "Install with Homebrew"},
+        {"value": "homebrew", "label": "Homebrew"},
         {"value": "custom_root", "label": "Custom root"},
         {"value": "custom_args", "label": "Custom arguments"},
     ]

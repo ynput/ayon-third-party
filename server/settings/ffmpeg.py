@@ -17,8 +17,8 @@ class CustomFFmpegArgumentsModel(BaseSettingsModel):
 
 def _ffmpeg_windows_enum():
     return [
-        {"value": "download", "label": "Download from AYON server"},
-        {"value": "winget", "label": "Install with WinGet"},
+        {"value": "download", "label": "AYON server (7.1)"},
+        {"value": "winget", "label": "WinGet (7.1)"},
         {"value": "custom_root", "label": "Custom root"},
         {"value": "custom_args", "label": "Custom arguments"},
     ]
@@ -26,7 +26,7 @@ def _ffmpeg_windows_enum():
 
 def _ffmpeg_linux_enum():
     return [
-        {"value": "download", "label": "Download from AYON server"},
+        {"value": "download", "label": "AYON server (7.1)"},
         {"value": "custom_root", "label": "Custom root"},
         {"value": "custom_args", "label": "Custom arguments"},
     ]
@@ -34,8 +34,8 @@ def _ffmpeg_linux_enum():
 
 def _ffmpeg_macos_enum():
     return [
-        {"value": "download", "label": "Download from AYON server"},
-        {"value": "homebrew", "label": "Install with Homebrew"},
+        {"value": "download", "label": "AYON server (7.1)"},
+        {"value": "homebrew", "label": "Homebrew"},
         {"value": "custom_root", "label": "Custom root"},
         {"value": "custom_args", "label": "Custom arguments"},
     ]
