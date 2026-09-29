@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from copy import deepcopy
 from typing import Any
 
@@ -8,6 +9,18 @@ PLATFORM_NAMES = (
     "linux",
     "darwin",
 )
+# Version in which tool sources became ordered per-platform lists
+SOURCES_SETTINGS_VERSION = (1, 5, 0)
+
+
+def _parse_version(version: str | None) -> tuple[int, int, int] | None:
+    """Parse 'major.minor.patch' from a version, ignore prerelease suffix."""
+    if not version:
+        return None
+    match = re.match(r"(\d+)\.(\d+)\.(\d+)", version)
+    if match is None:
+        return None
+    return tuple(int(part) for part in match.groups())
 
 
 def _convert_tools_settings_1_5_0(
@@ -131,5 +144,9 @@ def convert_settings_overrides(
     source_version: str,
     overrides: dict[str, Any],
 ) -> dict[str, Any]:
-    _convert_settings_1_5_0(overrides)
+    # Convert only overrides of older versions. Unknown version is converted
+    #   too, the conversion is skipped when the new structure is detected.
+    parsed_version = _parse_version(source_version)
+    if parsed_version is None or parsed_version < SOURCES_SETTINGS_VERSION:
+        _convert_settings_1_5_0(overrides)
     return overrides
