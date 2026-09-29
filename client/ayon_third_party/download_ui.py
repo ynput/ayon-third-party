@@ -174,7 +174,7 @@ class DownloadController:
         self._install_finished = True
 
 
-class ProgressBarAYFFOIIO(QtWidgets.QProgressBar):
+class InstallProgressBar(QtWidgets.QProgressBar):
     def __init__(
         self, install_item: InstallItem, parent: QtWidgets.QWidget
     ):
@@ -237,7 +237,7 @@ class DownloadWindow(QtWidgets.QWidget):
         row = 0
         for item in controller.install_items:
             title_widget = QtWidgets.QLabel(item.title, content_widget)
-            progress_widget = ProgressBarAYFFOIIO(item, content_widget)
+            progress_widget = InstallProgressBar(item, content_widget)
             progress_widgets.append(progress_widget)
             content_layout.addWidget(title_widget, row, 0)
             content_layout.addWidget(progress_widget, row, 1)
@@ -316,21 +316,21 @@ def show_download_window(
 
 
 STYLE_OVERRIDES = """
-ProgressBarAYFFOIIO {
+InstallProgressBar {
     font-weight: bold;
     text-align: center;
     border-radius: 6px;
 }
 
-ProgressBarAYFFOIIO:horizontal {
+InstallProgressBar:horizontal {
     height: 20px;
 }
 
-ProgressBarAYFFOIIO:vertical {
+InstallProgressBar:vertical {
     width: 20px;
 }
 
-ProgressBarAYFFOIIO::chunk {
+InstallProgressBar::chunk {
     border: 1px solid #373D48;
     background: qlineargradient(
         x1:0, y1:0,
