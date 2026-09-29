@@ -192,7 +192,7 @@ class ProgressBarAYFFOIIO(QtWidgets.QProgressBar):
         text, tooltip = self._get_text_tooltip()
         self.setToolTip(tooltip)
         self._text = text
-        self.repaint()
+        self.update()
 
     def _get_text_tooltip(self) -> tuple[str | None, str]:
         if self._install_item.failed:
