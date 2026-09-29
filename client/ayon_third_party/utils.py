@@ -807,7 +807,7 @@ def _fill_oiio_tool_args(
 
         receive_type = item["receive_type"]
         if receive_type == "custom_args":
-            custom_args = list(oiio_settings["custom_args"][tool_name])
+            custom_args = list(item["custom_args"][tool_name])
             if not validate_oiio_args(custom_args):
                 continue
             tracker.set_finished()
@@ -972,7 +972,7 @@ def is_oiio_download_needed(
     for item in oiio_settings[PLATFORM_NAME]:
         receive_type = item["receive_type"]
         if receive_type == "custom_args":
-            custom_args = list(oiio_settings["custom_args"][tool_name])
+            custom_args = list(item["custom_args"][tool_name])
             if not validate_oiio_args(custom_args):
                 continue
             _OIIOArgs.tools[tool_name] = custom_args
