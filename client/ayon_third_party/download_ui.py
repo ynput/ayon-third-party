@@ -215,20 +215,6 @@ class ProgressBarAYFFOIIO(QtWidgets.QProgressBar):
         self.setValue(progress)
         return None, ""
 
-        # TODO replace with 'progress.is_running' once is fixed
-        progress_is_running = not (
-            not progress.started
-            or progress.transfer_done
-            or progress.failed
-        )
-        if progress_is_running:
-            transfer_progress = progress.transfer_progress
-            if transfer_progress is None:
-                return "Downloading...", ""
-            self.setValue(int(transfer_progress))
-            return None, ""
-        return "Extracting...", ""
-
 
 class DownloadWindow(QtWidgets.QWidget):
     finished = QtCore.Signal()
@@ -344,14 +330,6 @@ ProgressBarAYFFOIIO:vertical {
     width: 20px;
 }
 
-ProgressBarAYFFOIIO2::chunk {
-    background: qlineargradient(
-        x1: 0, y1: 0.5,
-        x2: 1, y2: 0.5,
-        stop: 0 {palette:blue-base},
-        stop: 1 {palette:green-base}
-    );
-}
 ProgressBarAYFFOIIO::chunk {
     border: 1px solid #373D48;
     background: qlineargradient(
