@@ -489,6 +489,7 @@ def _winget_get_ffmpeg_path(
 
     Args:
         package_id (str): WinGet package ID.
+        tool_filename (str): Filename of the tool (with extension).
 
     Returns:
         str | None: Path to tool if found.
@@ -544,21 +545,21 @@ def _winget_install_ffmpeg() -> str | None:
     # Check if already installed via winget
     tool_path = _winget_get_ffmpeg_path(WINGET_FFMPEG_PACKAGE, "ffmpeg.exe")
     if tool_path:
-        return os.path.dirname(tool_path)
+        return tool_path
 
     try:
         subprocess.check_call([
             "winget", "install",
-            "-e", "--id", WINGET_FFMPEG_PACKAGE
+            "-e", "--id", WINGET_FFMPEG_PACKAGE,
+            "--silent",
+            "--accept-package-agreements",
+            "--accept-source-agreements",
         ])
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, OSError):
         log.error("Failed to install 'ffmpeg' using winget.")
         return None
 
-    tool_path = _winget_get_ffmpeg_path(WINGET_FFMPEG_PACKAGE, "ffmpeg.exe")
-    if tool_path:
-        return os.path.dirname(tool_path)
-    return None
+    return _winget_get_ffmpeg_path(WINGET_FFMPEG_PACKAGE, "ffmpeg.exe")
 
 
 def _get_resources_dir(*args) -> str:
