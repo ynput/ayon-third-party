@@ -90,8 +90,13 @@ class FFmpegMacOsModel(BaseSettingsModel):
     receive_type: str = SettingsField(
         title="Source",
         enum_resolver=_ffmpeg_macos_enum,
-        default="homebrew",
+        default="download",
         conditionalEnum=True,
+        description=(
+            "Source of ffmpeg for artist machines."
+            " Homebrew option can only use installed ffmpeg version,"
+            " it will not install or update ffmpeg."
+        )
     )
     custom_root: str = SettingsField(
         "",

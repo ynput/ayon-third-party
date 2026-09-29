@@ -487,6 +487,11 @@ def _homebrew_install(package_name: str, tool_name: str) -> str | None:
     This function does not validate the installed version. It could use very
         old or very new version of ffmpeg.
 
+    NOTE:
+        Homebrew installation is NOT supported at this moment. It may need
+            sudo or user's interaction. There is also lack of version
+            management for openimageio.
+
     Returns:
         str | None: Path to tool if installed.
 

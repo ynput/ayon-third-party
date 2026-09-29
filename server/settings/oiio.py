@@ -108,8 +108,13 @@ class OIIOMacOsModel(BaseSettingsModel):
     receive_type: str = SettingsField(
         title="Source",
         enum_resolver=_openimageio_macos_enum,
-        default="homebrew",
+        default="download",
         conditionalEnum=True,
+        description=(
+            "Source of openimageio for artist machines."
+            " Homebrew option can only use installed openimageio version,"
+            " it will not install or update openimageio."
+        )
     )
     custom_root: str = SettingsField(
         "",
