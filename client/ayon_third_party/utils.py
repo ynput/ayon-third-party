@@ -476,8 +476,8 @@ def _homebrew_get_tool_path(
         if os.path.exists(tool_path):
             return tool_path
 
-    except (subprocess.CalledProcessError, Exception):
-        log.info("Failed to get 'ffmpeg' prefix from homebrew")
+    except Exception:
+        log.info(f"Failed to get '{package_name}' prefix from homebrew")
     return None
 
 
