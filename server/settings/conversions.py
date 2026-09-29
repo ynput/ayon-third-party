@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import re
 from copy import deepcopy
 from typing import Any
+
+import semver
 
 PLATFORM_NAMES = (
     "windows",
@@ -10,17 +11,20 @@ PLATFORM_NAMES = (
     "darwin",
 )
 # Version in which tool sources became ordered per-platform lists
-SOURCES_SETTINGS_VERSION = (1, 5, 0)
+SOURCES_SETTINGS_VERSION = semver.VersionInfo(1, 5, 0)
 
 
-def _parse_version(version: str | None) -> tuple[int, int, int] | None:
-    """Parse 'major.minor.patch' from a version, ignore prerelease suffix."""
-    if not version:
-        return None
-    match = re.match(r"(\d+)\.(\d+)\.(\d+)", version)
-    if match is None:
-        return None
-    return tuple(int(part) for part in match.groups())
+def _is_older_than_sources_version(source_version: str | None) -> bool:
+    """Check if version is older than the one with per-platform sources.
+
+    Unknown or invalid version is considered older, the conversion is
+    a no-op when the new structure is already used.
+    """
+    try:
+        version = semver.VersionInfo.parse(source_version)
+    except (ValueError, TypeError):
+        return True
+    return version.finalize_version() < SOURCES_SETTINGS_VERSION
 
 
 def _convert_tools_settings_1_5_0(
@@ -144,9 +148,6 @@ def convert_settings_overrides(
     source_version: str,
     overrides: dict[str, Any],
 ) -> dict[str, Any]:
-    # Convert only overrides of older versions. Unknown version is converted
-    #   too, the conversion is skipped when the new structure is detected.
-    parsed_version = _parse_version(source_version)
-    if parsed_version is None or parsed_version < SOURCES_SETTINGS_VERSION:
+    if _is_older_than_sources_version(source_version):
         _convert_settings_1_5_0(overrides)
     return overrides
