@@ -481,38 +481,6 @@ def _homebrew_get_tool_path(
     return None
 
 
-def _homebrew_install(package_name: str, tool_name: str) -> str | None:
-    """Install tool using homebrew.
-
-    This function does not validate the installed version. It could use very
-        old or very new version of ffmpeg.
-
-    NOTE:
-        Homebrew installation is NOT supported at this moment. It may need
-            sudo or user's interaction. There is also lack of version
-            management for openimageio.
-
-    Returns:
-        str | None: Path to tool if installed.
-
-    """
-    if PLATFORM_NAME != "darwin":
-        return None
-
-    tool_path = _homebrew_get_tool_path(package_name, tool_name)
-    if tool_path:
-        return tool_path
-
-    log.info(f"Installing '{tool_name}' using homebrew.")
-    try:
-        subprocess.check_call(["brew", "install", package_name])
-    except subprocess.CalledProcessError:
-        log.error(f"Failed to install '{package_name}' using homebrew.")
-        return None
-
-    return _homebrew_get_tool_path(package_name, tool_name)
-
-
 def _winget_get_ffmpeg_path(
     package_id: str,
     tool_filename: str,
