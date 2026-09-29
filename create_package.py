@@ -35,7 +35,6 @@ import zipfile
 import subprocess
 import hashlib
 import urllib.request
-from pathlib import Path
 from typing import Optional, Iterable, Pattern, Union, List, Tuple
 
 import package
@@ -145,29 +144,27 @@ class ZipFileLongPaths(zipfile.ZipFile):
         return super()._extract_member(member, tpath, pwd)
 
 
-def update_pyproject_version(log: logging.Logger) -> None:
-    """Update version in pyproject.toml if it exists."""
+def update_pyproject_version(logger):
     pyproject_toml = os.path.join(CURRENT_ROOT, "pyproject.toml")
     if not os.path.exists(pyproject_toml):
-        log.info("Did not find pyproject.toml in root directory. Skipping")
+        logger.info("Did not find pyproject.toml in root directory. Skipping")
         return
 
     line_idx = None
     new_lines = []
-    for idx, line in enumerate(
-        Path(pyproject_toml).read_text(encoding="utf-8").splitlines()
-    ):
-        if line_idx is None and line.startswith("version"):
-            line = f'version = "{ADDON_VERSION}"'
-            line_idx = idx
-        new_lines.append(line)
+    with open(pyproject_toml, "r", encoding="utf-8") as stream:
+        for idx, line in enumerate(stream.readlines()):
+            if line_idx is None and line.startswith("version"):
+                line_idx = idx
+            new_lines.append(line)
 
     if line_idx is None:
-        log.info("Failed to find version in pyproject.toml. Skipping.")
+        logger.info("Failed to find version in pyproject.toml. Skipping.")
         return
 
-    new_lines.append("")
-    Path(pyproject_toml).write_text("\n".join(new_lines), encoding="utf-8")
+    new_lines[line_idx] = f"version = \"{ADDON_VERSION}\"\n"
+    with open(pyproject_toml, "w", encoding="utf-8") as stream:
+        stream.write("".join(new_lines))
 
 
 def calculate_file_checksum(filepath, hash_algorithm, chunk_size=10000):
