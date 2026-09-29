@@ -839,10 +839,10 @@ def _fill_oiio_tool_args(
 def is_ffmpeg_download_needed(
     addon_settings: dict[str, Any] | None = None,
 ) -> bool:
-    """Check if is download needed.
+    """Check if FFmpeg has to be downloaded or installed.
 
     Returns:
-        bool: Should be config downloaded.
+        bool: True if FFmpeg should be downloaded or installed.
 
     """
     if _FFmpegArgs.download_needed is not None:
@@ -922,10 +922,10 @@ def is_ffmpeg_download_needed(
 def is_oiio_download_needed(
     addon_settings: dict[str, Any] | None = None,
 ) -> bool:
-    """Check if is download needed.
+    """Check if OpenImageIO has to be downloaded.
 
     Returns:
-        bool: Should be config downloaded.
+        bool: True if OpenImageIO should be downloaded.
 
     """
     if _OIIOArgs.download_needed is not None:
@@ -1228,7 +1228,8 @@ def get_ffmpeg_arguments(
             tool for which arguments should be returned.
 
     Returns:
-        list[str]: Path to FFmpeg directory.
+        list[str] | None: Arguments to run the tool or None if the tool
+            is not available.
 
     """
     args = _FFmpegArgs.tools.get(tool_name, NOT_SET)
@@ -1249,7 +1250,8 @@ def get_oiio_arguments(
         tool_name (OIIOToolName): Name of OIIO tool.
 
     Returns:
-        str: Path to zip info file.
+        list[str] | None: Arguments to run the tool or None if the tool
+            is not available.
 
     """
     args = _OIIOArgs.tools.get(tool_name, NOT_SET)
