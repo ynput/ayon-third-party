@@ -34,7 +34,7 @@ if typing.TYPE_CHECKING:
 
 PLATFORM_NAME = platform.system().lower()
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-NOT_SET = type("NOT_SET", (), {"__bool__": lambda: False})()
+NOT_SET = type("NOT_SET", (), {"__bool__": lambda self: False})()
 IMPLEMENTED_ARCHIVE_FORMATS = {
     ".zip", ".tar", ".tgz", ".tar.gz", ".tar.xz", ".tar.bz2"
 }
