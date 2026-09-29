@@ -49,6 +49,10 @@ DEFAULT_SETTINGS = {
                 "receive_type": "download",
             },
         ],
-        "darwin": [],
+        "darwin": [
+            {
+                "receive_type": "homebrew",
+            },
+        ],
     },
 }
