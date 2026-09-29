@@ -41,8 +41,8 @@ IMPLEMENTED_ARCHIVE_FORMATS = {
 # Filename where is stored progress of extraction
 DIST_PROGRESS_FILENAME = "dist_progress.json"
 # How long to wait for other process to download/extract content
-DOWNLOAD_WAIT_TRESHOLD_TIME = 20
-EXTRACT_WAIT_TRESHOLD_TIME = 20
+DOWNLOAD_WAIT_THRESHOLD_TIME = 20
+EXTRACT_WAIT_THRESHOLD_TIME = 20
 
 WINGET_FFMPEG_PACKAGE = "BtbN.FFmpeg.LGPL.7.1"
 
@@ -1037,13 +1037,13 @@ def _wait_for_other_process(progress_path: str, progress_id: str) -> bool:
             state = current_state
 
         if threshold_time is None:
-            threshold_time = EXTRACT_WAIT_TRESHOLD_TIME
+            threshold_time = EXTRACT_WAIT_THRESHOLD_TIME
             if current_state == "downloading":
-                threshold_time = DOWNLOAD_WAIT_TRESHOLD_TIME
+                threshold_time = DOWNLOAD_WAIT_THRESHOLD_TIME
 
         if (time.time() - started) > threshold_time:
             log.debug(
-                f"Waited for treshold time ({EXTRACT_WAIT_TRESHOLD_TIME}s)."
+                f"Waited for threshold time ({threshold_time}s)."
                 f" Extracting downloaded content."
             )
             try:
