@@ -1218,6 +1218,26 @@ def install_oiio(
     )
 
 
+def download_ffmpeg(progress: TransferProgress | None = None) -> None:
+    """Deprecated alias of 'install_ffmpeg'.
+
+    Kept for backwards compatibility, 'progress' is not used anymore.
+    Use 'install_ffmpeg' with 'InstallTracker' instead.
+
+    """
+    install_ffmpeg()
+
+
+def download_oiio(progress: TransferProgress | None = None) -> None:
+    """Deprecated alias of 'install_oiio'.
+
+    Kept for backwards compatibility, 'progress' is not used anymore.
+    Use 'install_oiio' with 'InstallTracker' instead.
+
+    """
+    install_oiio()
+
+
 def get_ffmpeg_arguments(
     tool_name: FFmpegToolname = "ffmpeg"
 ) -> list[str] | None:

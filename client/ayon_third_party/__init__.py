@@ -7,6 +7,8 @@ from .utils import (
     is_oiio_download_needed,
     install_ffmpeg,
     install_oiio,
+    download_ffmpeg,
+    download_oiio,
     get_ffmpeg_arguments,
     get_oiio_arguments,
 )
@@ -21,6 +23,8 @@ __all__ = (
     "is_oiio_download_needed",
     "install_ffmpeg",
     "install_oiio",
+    "download_ffmpeg",
+    "download_oiio",
     "get_ffmpeg_arguments",
     "get_oiio_arguments",
 )
