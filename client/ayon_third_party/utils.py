@@ -476,8 +476,8 @@ def _homebrew_get_tool_path(
         if os.path.exists(tool_path):
             return tool_path
 
-    except (subprocess.CalledProcessError, Exception):
-        log.info("Failed to get 'ffmpeg' prefix from homebrew")
+    except Exception:
+        log.info(f"Failed to get '{package_name}' prefix from homebrew")
     return None
 
 
@@ -587,7 +587,7 @@ def _winget_install_ffmpeg() -> str | None:
             "--accept-package-agreements",
             "--accept-source-agreements",
         ])
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, OSError):
         log.error("Failed to install 'ffmpeg' using winget.")
         return None
 
