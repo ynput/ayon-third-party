@@ -731,7 +731,7 @@ def _fill_ffmpeg_tool_args(
             try:
                 custom_root = custom_root.format_map(os.environ)
             except (ValueError, KeyError):
-                print(f"Failed to format custom root '{custom_root}'")
+                log.warning(f"Failed to format custom root '{custom_root}'")
                 continue
 
             tool_path = tool_filename
@@ -819,7 +819,7 @@ def _fill_oiio_tool_args(
             try:
                 custom_root = custom_root.format_map(os.environ)
             except (ValueError, KeyError):
-                print(f"Failed to format custom root '{custom_root}'")
+                log.warning(f"Failed to format custom root '{custom_root}'")
                 continue
 
             tool_path = tool_name
@@ -901,7 +901,7 @@ def is_ffmpeg_download_needed(
             try:
                 custom_root = custom_root.format_map(os.environ)
             except (ValueError, KeyError):
-                print(f"Failed to format custom root '{custom_root}'")
+                log.warning(f"Failed to format custom root '{custom_root}'")
                 continue
 
             tool_path = tool_filename
@@ -984,7 +984,7 @@ def is_oiio_download_needed(
             try:
                 custom_root = custom_root.format_map(os.environ)
             except (ValueError, KeyError):
-                print(f"Failed to format custom root '{custom_root}'")
+                log.warning(f"Failed to format custom root '{custom_root}'")
                 continue
 
             tool_path = tool_name
