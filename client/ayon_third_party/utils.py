@@ -844,7 +844,7 @@ def _fill_oiio_tool_args(
                 _download_oiio(progress)
 
             args = [
-                os.path.sep.join(
+                os.path.join(
                     _get_downloaded_oiio_root(),
                     "bin",
                     tool_filename
