@@ -928,9 +928,10 @@ def is_ffmpeg_download_needed(
 
         if receive_type == "homebrew":
             tool_path = _homebrew_get_tool_path("ffmpeg", tool_filename)
-            if not tool_path:
-                download_needed = True
-            break
+            if tool_path and validate_ffmpeg_args([tool_path]):
+                _FFmpegArgs.tools[tool_name] = [tool_path]
+                break
+            continue
 
         if receive_type == "winget":
             tool_path = _winget_get_ffmpeg_path(
@@ -1010,9 +1011,10 @@ def is_oiio_download_needed(
 
         if receive_type == "homebrew":
             tool_path = _homebrew_get_tool_path("openimageio", tool_filename)
-            if not tool_path or not validate_oiio_args([tool_path]):
-                download_needed = True
-            break
+            if tool_path and validate_oiio_args([tool_path]):
+                _OIIOArgs.tools[tool_name] = [tool_path]
+                break
+            continue
 
     _OIIOArgs.download_needed = download_needed
     return _OIIOArgs.download_needed
