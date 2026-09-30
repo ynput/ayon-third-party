@@ -582,7 +582,10 @@ def _winget_install_ffmpeg() -> str | None:
     try:
         subprocess.check_call([
             "winget", "install",
-            "-e", "--id", WINGET_FFMPEG_PACKAGE
+            "-e", "--id", WINGET_FFMPEG_PACKAGE,
+            "--silent",
+            "--accept-package-agreements",
+            "--accept-source-agreements",
         ])
     except subprocess.CalledProcessError:
         log.error("Failed to install 'ffmpeg' using winget.")
