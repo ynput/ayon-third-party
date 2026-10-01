@@ -344,14 +344,6 @@ ProgressBarAYFFOIIO:vertical {
     width: 20px;
 }
 
-ProgressBarAYFFOIIO2::chunk {
-    background: qlineargradient(
-        x1: 0, y1: 0.5,
-        x2: 1, y2: 0.5,
-        stop: 0 {palette:blue-base},
-        stop: 1 {palette:green-base}
-    );
-}
 ProgressBarAYFFOIIO::chunk {
     border: 1px solid #373D48;
     background: qlineargradient(
