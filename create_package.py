@@ -35,6 +35,7 @@ import zipfile
 import subprocess
 import hashlib
 import urllib.request
+from pathlib import Path
 from typing import Optional, Iterable, Pattern, Union, List, Tuple
 
 import package
@@ -56,9 +57,9 @@ FFMPEG_SOURCES = {
         "checksum_algorithm": "sha256",
     },
     "darwin": {
-        "url": f"{DISTRIBUTE_SOURCE_URL}/ffmpeg-7.1-macos-intel.tar.xz",
+        "url": f"{DISTRIBUTE_SOURCE_URL}/ffmpeg-7.1-macos-arm.tar.xz",
         "checksum": (
-            "4ed7a974a77ff2766f1e4e6abf08de351c9ce41b594def5c8ba4da315c5ce655"
+            "e55e82b6908d64b57d216edabeff1255a05b1c59516b538f49d071cbdc8e56e1"
         ),
         "checksum_algorithm": "sha256",
     }
@@ -78,15 +79,6 @@ OIIO_SOURCES = {
         ),
         "checksum_algorithm": "sha256",
     },
-    "darwin": {
-        "url": (
-            f"{DISTRIBUTE_SOURCE_URL}/openimageio-v3.0.6.1-macos_x86_64.tgz"
-        ),
-        "checksum": (
-            "cf588fadebfb1771b9c101b4352af3236309b5c8457f2c59c7fc116cb77cfa11"
-        ),
-        "checksum_algorithm": "sha256",
-    }
 }
 
 FileMapping = Tuple[Union[str, io.BytesIO], str]
@@ -153,27 +145,29 @@ class ZipFileLongPaths(zipfile.ZipFile):
         return super()._extract_member(member, tpath, pwd)
 
 
-def update_pyproject_version(logger):
+def update_pyproject_version(log: logging.Logger) -> None:
+    """Update version in pyproject.toml if it exists."""
     pyproject_toml = os.path.join(CURRENT_ROOT, "pyproject.toml")
     if not os.path.exists(pyproject_toml):
-        logger.info("Did not find pyproject.toml in root directory. Skipping")
+        log.info("Did not find pyproject.toml in root directory. Skipping")
         return
 
     line_idx = None
     new_lines = []
-    with open(pyproject_toml, "r", encoding="utf-8") as stream:
-        for idx, line in enumerate(stream.readlines()):
-            if line_idx is None and line.startswith("version"):
-                line_idx = idx
-            new_lines.append(line)
+    for idx, line in enumerate(
+        Path(pyproject_toml).read_text(encoding="utf-8").splitlines()
+    ):
+        if line_idx is None and line.startswith("version"):
+            line = f'version = "{ADDON_VERSION}"'
+            line_idx = idx
+        new_lines.append(line)
 
     if line_idx is None:
-        logger.info("Failed to find version in pyproject.toml. Skipping.")
+        log.info("Failed to find version in pyproject.toml. Skipping.")
         return
 
-    new_lines[line_idx] = f"version = \"{ADDON_VERSION}\"\n"
-    with open(pyproject_toml, "w", encoding="utf-8") as stream:
-        stream.write("".join(new_lines))
+    new_lines.append("")
+    Path(pyproject_toml).write_text("\n".join(new_lines), encoding="utf-8")
 
 
 def calculate_file_checksum(filepath, hash_algorithm, chunk_size=10000):
