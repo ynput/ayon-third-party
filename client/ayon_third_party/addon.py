@@ -29,6 +29,7 @@ class ThirdPartyDistAddon(AYONAddon, ITrayAddon):
     version = __version__
 
     def initialize(self, settings: dict[str, Any]) -> None:
+        self._addon_settings: dict[str, Any] = settings[self.name]
         self._download_window: Optional["DownloadWindow"] = None
 
     def tray_exit(self) -> None:
@@ -41,8 +42,12 @@ class ThirdPartyDistAddon(AYONAddon, ITrayAddon):
         pass
 
     def tray_start(self) -> None:
-        download_ffmpeg = is_ffmpeg_download_needed()
-        download_oiio = is_oiio_download_needed()
+        download_ffmpeg = is_ffmpeg_download_needed(
+            addon_settings=self._addon_settings
+        )
+        download_oiio = is_oiio_download_needed(
+            addon_settings=self._addon_settings
+        )
         if not download_oiio and not download_ffmpeg:
             return
 
