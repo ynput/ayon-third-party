@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import threading
 import typing
+from functools import partial
 from typing import Optional, Any
 
 from ayon_core.addon import AYONAddon, ITrayAddon
@@ -42,15 +44,35 @@ class ThirdPartyDistAddon(AYONAddon, ITrayAddon):
         pass
 
     def tray_start(self) -> None:
-        download_ffmpeg = is_ffmpeg_download_needed(
-            addon_settings=self._addon_settings
-        )
-        download_oiio = is_oiio_download_needed(
-            addon_settings=self._addon_settings
-        )
-        if not download_oiio and not download_ffmpeg:
+        threading.Thread(
+            target=self._check_download_needed,
+            name=f"{self.name} download check",
+            daemon=True,
+        ).start()
+
+    def _check_download_needed(self) -> None:
+        try:
+            download_ffmpeg = is_ffmpeg_download_needed(
+                addon_settings=self._addon_settings
+            )
+            download_oiio = is_oiio_download_needed(
+                addon_settings=self._addon_settings
+            )
+        except Exception:
+            self.log.warning(
+                "Failed to check if ffmpeg or OIIO download is needed.",
+                exc_info=True,
+            )
             return
 
+        if download_ffmpeg or download_oiio:
+            self.execute_in_main_thread(partial(
+                self._show_download_window, download_ffmpeg, download_oiio
+            ))
+
+    def _show_download_window(
+        self, download_ffmpeg: bool, download_oiio: bool
+    ) -> None:
         from .download_ui import show_download_window
 
         download_window = show_download_window(
