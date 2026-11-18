@@ -5,8 +5,8 @@ from .addon import ThirdPartyDistAddon
 from .utils import (
     is_ffmpeg_download_needed,
     is_oiio_download_needed,
-    download_ffmpeg,
-    download_oiio,
+    install_ffmpeg,
+    install_oiio,
     get_ffmpeg_arguments,
     get_oiio_arguments,
 )
@@ -19,8 +19,8 @@ __all__ = (
 
     "is_ffmpeg_download_needed",
     "is_oiio_download_needed",
-    "download_ffmpeg",
-    "download_oiio",
+    "install_ffmpeg",
+    "install_oiio",
     "get_ffmpeg_arguments",
     "get_oiio_arguments",
 )
